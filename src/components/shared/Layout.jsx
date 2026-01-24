@@ -21,7 +21,7 @@ export default function Layout({ onLogout }) {
       <aside className="w-64 bg-slate-900 text-white flex flex-col shadow-xl z-20">
         <div className="h-16 flex items-center px-6 border-b border-slate-800">
           <Wrench className="w-6 h-6 text-blue-500 mr-2" />
-          <span className="text-xl font-bold tracking-wider">MECÁNICA <span className="text-blue-500">PRO</span></span>
+          <span className="text-xl font-bold tracking-wider">TALLER <span className="text-blue-500">MECÁNICA</span></span>
         </div>
 
         <nav className="flex-1 py-6 px-3 space-y-2">

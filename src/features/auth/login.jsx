@@ -18,7 +18,7 @@ export default function Login({ onLogin }) {
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md p-8 rounded-2xl shadow-2xl">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-slate-800">MECÁNICA PRO</h1>
+          <h1 className="text-3xl font-bold text-slate-800">TALLER MECÁNICA</h1>
           <p className="text-gray-500 mt-2">Sistema de Gestión Integral</p>
         </div>
         
