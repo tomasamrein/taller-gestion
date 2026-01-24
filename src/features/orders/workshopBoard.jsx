@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { getActiveOrders, updateOrderStatus } from '../../services/orderService'
+import OrderBilling from './orderBilling'
 
 export default function WorkshopBoard() {
   const [orders, setOrders] = useState([])
+  const [selectedOrder, setSelectedOrder] = useState(null)
 
   useEffect(() => { loadOrders() }, [])
 
@@ -16,7 +18,7 @@ export default function WorkshopBoard() {
     loadOrders()
   }
 
-  // --- NUEVA FUNCIÓN: Generar link de WhatsApp ---
+  // --- FUNCIÓN WHATSAPP ---
   const sendWhatsApp = (order) => {
     const cliente = order.vehicles?.clients?.full_name
     const telefono = order.vehicles?.clients?.phone
@@ -24,18 +26,12 @@ export default function WorkshopBoard() {
     
     if (!telefono) return alert('El cliente no tiene teléfono cargado')
 
-    // 1. Limpiamos el número (sacamos guiones, espacios, etc)
     let numeroLimpio = telefono.replace(/\D/g, '')
-    
-    // Si es argentina y no tiene el 54, se lo agregamos (asumiendo que puso 342...)
     if (!numeroLimpio.startsWith('54')) {
       numeroLimpio = '549' + numeroLimpio
     }
 
-    // 2. Creamos el mensaje personalizado
     const mensaje = `Hola ${cliente}! Te escribimos del Taller. Tu ${auto} (Patente: ${order.vehicles?.patent}) ya está LISTO para retirar.`
-    
-    // 3. Abrimos WhatsApp Web
     const url = `https://wa.me/${numeroLimpio}?text=${encodeURIComponent(mensaje)}`
     window.open(url, '_blank')
   }
@@ -85,21 +81,38 @@ export default function WorkshopBoard() {
             {/* Pie de Acciones */}
             <div className="p-3 bg-gray-50 border-t flex flex-col gap-2">
               
-              {/* Botones de Estado */}
               <div className="flex gap-2">
+                {/* BOTÓN DE COSTOS ($) */}
+                <button 
+                  onClick={() => setSelectedOrder(order)}
+                  className="bg-blue-100 text-blue-700 px-3 py-2 rounded font-bold hover:bg-blue-200 border border-blue-200"
+                  title="Cargar Repuestos y Mano de Obra"
+                >
+                  💲
+                </button>
+
+                {/* Botón EMPEZAR */}
                 {order.status === 'pendiente' && (
-                  <button onClick={() => handleStatusChange(order.id, 'en_proceso')} className="flex-1 bg-yellow-500 text-white text-sm py-2 rounded font-bold hover:bg-yellow-600 transition">
+                  <button 
+                    onClick={() => handleStatusChange(order.id, 'en_proceso')} 
+                    className="flex-1 bg-yellow-500 text-white text-sm py-2 rounded font-bold hover:bg-yellow-600 transition"
+                  >
                     ⚙️ Empezar
                   </button>
                 )}
+
+                {/* Botón FINALIZAR */}
                 {order.status !== 'finalizado' && (
-                  <button onClick={() => handleStatusChange(order.id, 'finalizado')} className="flex-1 bg-green-600 text-white text-sm py-2 rounded font-bold hover:bg-green-700 transition">
+                  <button 
+                    onClick={() => handleStatusChange(order.id, 'finalizado')} 
+                    className="flex-1 bg-green-600 text-white text-sm py-2 rounded font-bold hover:bg-green-700 transition"
+                  >
                     ✅ Finalizar
                   </button>
                 )}
               </div>
-
-              {/* --- EL BOTÓN DE WHATSAPP --- */}
+              
+              {/* BOTÓN WHATSAPP (Solo si finalizó) */}
               {order.status === 'finalizado' && (
                 <button 
                   onClick={() => sendWhatsApp(order)}
@@ -112,6 +125,14 @@ export default function WorkshopBoard() {
           </div>
         ))}
       </div>
+
+      {/* Modal de Facturación */}
+      {selectedOrder && (
+        <OrderBilling 
+          order={selectedOrder} 
+          onClose={() => setSelectedOrder(null)} 
+        />
+      )}
     </div>
   )
 }

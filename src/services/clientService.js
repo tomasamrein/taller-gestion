@@ -21,3 +21,12 @@ export const createClient = async (clientData) => {
   if (error) throw error
   return data
 }
+
+// Eliminar cliente
+export const deleteClient = async (id) => {
+    const { error } = await supabase
+      .from('clients')
+      .delete()
+      .eq('id', id)
+    if (error) throw error
+  }

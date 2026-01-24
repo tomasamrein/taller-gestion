@@ -44,3 +44,21 @@ export const createExpense = async (expense) => {
   const { error } = await supabase.from('expenses').insert([expense])
   if (error) throw error
 }
+
+// Borrar gastos
+export const deleteExpense = async (id) => {
+    const { error } = await supabase
+      .from('expenses')
+      .delete()
+      .eq('id', id)
+    if (error) throw error
+  }
+
+// Borrar proveedor
+export const deleteSupplier = async (id) => {
+    const { error } = await supabase
+      .from('suppliers')
+      .delete()
+      .eq('id', id)
+    if (error) throw error
+  }
