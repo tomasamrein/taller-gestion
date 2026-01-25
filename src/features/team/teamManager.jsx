@@ -32,7 +32,7 @@ export default function TeamManager() {
   return (
     <div className="p-6 max-w-5xl mx-auto animate-fade-in">
       <h1 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-        <Users className="text-blue-600" /> Gestión de Equipo
+        <Users className="text-orange-600" /> Gestión de Equipo
       </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -68,7 +68,7 @@ export default function TeamManager() {
           {users.map(u => (
             <div key={u.id} className="bg-white p-4 rounded-xl shadow-sm border flex justify-between items-center">
               <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${u.role === 'admin' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${u.role === 'admin' ? 'bg-purple-100 text-purple-600' : 'bg-orange-100 text-orange-600'}`}>
                   {u.role === 'admin' ? <Shield size={24} /> : <Wrench size={24} />}
                 </div>
                 <div>

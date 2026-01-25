@@ -50,13 +50,13 @@ export default function Suppliers() {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-            <Truck className="text-blue-600" /> Directorio de Proveedores
+            <Truck className="text-orange-600" /> Directorio de Proveedores
           </h1>
           <p className="text-gray-500 mt-1">Gestioná tus contactos de repuestos e insumos.</p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)} 
-          className="bg-blue-600 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold hover:bg-blue-700 shadow-lg transition transform hover:-translate-y-0.5"
+          className="bg-orange-600 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold hover:bg-orange-700 shadow-lg transition transform hover:-translate-y-0.5"
         >
           <Plus size={20} /> Nuevo Proveedor
         </button>
@@ -75,7 +75,7 @@ export default function Suppliers() {
                 <div>
                 <div className="flex justify-between items-start">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-lg">
+                        <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-600 font-bold text-lg">
                             {sup.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
@@ -139,7 +139,7 @@ export default function Suppliers() {
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Empresa / Vendedor</label>
                     <input 
-                        className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+                        className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" 
                         placeholder="Ej: Repuestos Santa Fe"
                         value={newSup.name} 
                         onChange={e => setNewSup({...newSup, name: e.target.value})} 
@@ -150,7 +150,7 @@ export default function Suppliers() {
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono / Celular</label>
                     <input 
-                        className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+                        className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" 
                         placeholder="Ej: 342 123 4567"
                         type="tel"
                         value={newSup.phone} 
@@ -161,14 +161,14 @@ export default function Suppliers() {
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Rubro / Categoría</label>
                     <input 
-                        className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+                        className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" 
                         placeholder="Ej: Baterías, Lubricentro..."
                         value={newSup.category} 
                         onChange={e => setNewSup({...newSup, category: e.target.value})} 
                     />
                 </div>
 
-                <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition mt-2 shadow-lg">
+                <button className="w-full bg-orange-600 text-white py-3 rounded-lg font-bold hover:bg-orange-700 transition mt-2 shadow-lg">
                     Guardar Contacto
                 </button>
             </div>

@@ -30,7 +30,7 @@ export default function Inventory() {
         <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
           <Package /> Control de Stock
         </h1>
-        <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700">
+        <button onClick={() => setIsModalOpen(true)} className="bg-orange-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-orange-700">
           <Plus size={20} /> Nuevo Producto
         </button>
       </div>
@@ -87,7 +87,7 @@ export default function Inventory() {
             </div>
             <div className="flex gap-2 justify-end mt-4">
               <button type="button" onClick={() => setIsModalOpen(false)} className="text-gray-500 font-medium">Cancelar</button>
-              <button className="bg-blue-600 text-white px-4 py-2 rounded font-bold">Guardar</button>
+              <button className="bg-orange-600 text-white px-4 py-2 rounded font-bold">Guardar</button>
             </div>
           </form>
         </div>
