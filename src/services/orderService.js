@@ -1,78 +1,81 @@
 import { supabase } from '../lib/supabase'
 
-// Traer órdenes activas con TODOS los datos (Auto y Dueño)
+// --- ESTA FALTABA (CREAR NUEVA ORDEN) ---
+export const createOrder = async (order) => {
+  const { error } = await supabase.from('work_orders').insert([{
+    vehicle_id: order.vehicle_id,
+    description: order.description,
+    status: 'pendiente' // Arranca siempre pendiente
+  }])
+  if (error) throw error
+}
+
+// Traer órdenes activas (pendientes, en proceso o en revisión)
 export const getActiveOrders = async () => {
   const { data, error } = await supabase
     .from('work_orders')
     .select(`
       *,
       vehicles (
-        brand, model, patent,
-        clients (full_name, phone)
+        brand, model, year, patent,
+        clients ( full_name, phone )
       )
     `)
-    .neq('status', 'entregado') // Solo lo que está en el taller
-    .order('created_at', { ascending: false })
+    .neq('status', 'finalizado') // Trae todo lo que NO esté finalizado
+    .order('updated_at', { ascending: false })
   
-  if (error) throw error
-  return data
+  if (error) console.error(error)
+  return data || []
 }
 
-// Crear una nueva orden (Ingresar auto)
-export const createOrder = async (vehicleId, description) => {
+// Traer órdenes finalizadas (para el dashboard y la caja)
+export const getFinishedOrdersWithItems = async () => {
   const { data, error } = await supabase
     .from('work_orders')
-    .insert([{ 
-      vehicle_id: vehicleId, 
-      description: description,
-      status: 'pendiente'
-    }])
-    .select()
-  
-  if (error) throw error
-  return data
+    .select(`
+      *,
+      vehicles ( brand, model ),
+      order_items ( * )
+    `)
+    .eq('status', 'finalizado')
+    .order('delivery_date', { ascending: false })
+
+  if (error) console.error(error)
+  return data || []
 }
 
-// Cambiar estado (De Pendiente -> En Proceso -> Finalizado)
-export const updateOrderStatus = async (orderId, newStatus) => {
+// CAMBIAR ESTADO (Aprobaciones y flujo de trabajo)
+export const updateOrderStatus = async (id, status) => {
+  // Si finalizamos, guardamos la fecha de entrega. Si no, solo actualizamos el status.
+  const updates = { 
+    status, 
+    updated_at: new Date().toISOString() 
+  }
+
+  if (status === 'finalizado') {
+    updates.delivery_date = new Date().toISOString()
+  }
+
   const { error } = await supabase
     .from('work_orders')
-    .update({ status: newStatus })
-    .eq('id', orderId)
-    
+    .update(updates)
+    .eq('id', id)
+
   if (error) throw error
 }
 
-// Agregar un item (Ej: Filtro $5000)
+// FUNCIONES DE ITEMS (Repuestos y Mano de Obra)
+export const getOrderItems = async (orderId) => {
+  const { data } = await supabase.from('order_items').select('*').eq('order_id', orderId)
+  return data || []
+}
+
 export const addOrderItem = async (item) => {
-    const { error } = await supabase
-      .from('order_items')
-      .insert([item])
+  const { error } = await supabase.from('order_items').insert([item])
+  if (error) throw error
+}
+
+export const deleteOrderItem = async (id) => {
+    const { error } = await supabase.from('order_items').delete().eq('id', id)
     if (error) throw error
-  }
-  
-  // Traer los items de una orden específica
-  export const getOrderItems = async (orderId) => {
-    const { data, error } = await supabase
-      .from('order_items')
-      .select('*')
-      .eq('order_id', orderId)
-    if (error) throw error
-    return data
-  }
-  
-  // Traer TODAS las órdenes finalizadas con sus items para el gráfico
-  export const getFinishedOrdersWithItems = async () => {
-    const { data, error } = await supabase
-      .from('work_orders')
-      .select(`
-        id, 
-        status, 
-        delivery_date,
-        order_items (unit_price, quantity)
-      `)
-      .eq('status', 'finalizado') // Solo lo cobrado cuenta
-    
-    if (error) throw error
-    return data
-  }
+}
