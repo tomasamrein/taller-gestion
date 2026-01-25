@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Users, Wrench, Package, Wallet, Truck, Shield, LogOut, Menu, X } from 'lucide-react'
-import { LayoutDashboard, Users, Wrench, Package, Wallet, Truck, Shield, Calendar } from 'lucide-react'
+// AQUÍ ESTABA EL ERROR: Juntamos todos los íconos en una sola línea
+import { LayoutDashboard, Users, Wrench, Package, Wallet, Truck, Shield, LogOut, Menu, X, Calendar } from 'lucide-react'
 
 export default function Layout({ onLogout, userRole }) {
   const location = useLocation()
@@ -9,7 +9,7 @@ export default function Layout({ onLogout, userRole }) {
   
   let menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-    { icon: Calendar, label: 'Agenda Turnos', path: '/agenda' },
+    { icon: Calendar, label: 'Agenda Turnos', path: '/agenda' }, // <--- Botón Nuevo
     { icon: Users, label: 'Clientes', path: '/clientes' },
     { icon: Wrench, label: 'Taller', path: '/taller' },
     { icon: Package, label: 'Inventario', path: '/inventario' },
@@ -38,9 +38,7 @@ export default function Layout({ onLogout, userRole }) {
       `}>
         <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800">
           <div className="flex items-center">
-            {/* ÍCONO NARANJA */}
             <Wrench className="w-6 h-6 text-orange-500 mr-2" />
-            {/* NUEVO NOMBRE */}
             <span className="text-xl font-bold tracking-wider uppercase">Taller <span className="text-orange-500">Mecánica</span></span>
           </div>
           <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-gray-400 hover:text-white">
@@ -58,7 +56,7 @@ export default function Layout({ onLogout, userRole }) {
                 onClick={() => setIsSidebarOpen(false)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                   isActive 
-                    ? 'bg-orange-600 text-white shadow-lg' // <--- NARANJA ACTIVO
+                    ? 'bg-orange-600 text-white shadow-lg' 
                     : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                 }`}
               >
