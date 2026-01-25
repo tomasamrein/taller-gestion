@@ -11,7 +11,7 @@ export default function Expenses() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    await createExpense(form)
+    await createExpense(form, userRole, 'NombreUsuario')
     setForm({ description: '', amount: '', category: 'Varios' })
     load()
   }

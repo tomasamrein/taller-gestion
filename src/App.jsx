@@ -11,6 +11,8 @@ import Expenses from './features/finance/expenses'
 import Suppliers from './features/suppliers/suppliers'
 import TeamManager from './features/team/teamManager'
 import Agenda from './features/calendar/Agenda'
+import AuditLog from './features/admin/auditLog'
+
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -60,22 +62,27 @@ function App() {
 
   return (
     <BrowserRouter>
-    <Toaster position="bottom-center" toastOptions={{ duration: 3000, style: { background: '#333', color: '#fff' } }} />
+      <Toaster position="bottom-center" toastOptions={{ duration: 3000, style: { background: '#333', color: '#fff' } }} />
+      
       <Routes>
         {!isAuthenticated ? (
           <Route path="*" element={<Login onLogin={handleLogin} />} />
         ) : (
           <Route path="/" element={<Layout onLogout={handleLogout} userRole={userRole} />}>
             <Route index element={<Dashboard />} />
+            <Route path="agenda" element={<Agenda />} />
             <Route path="clientes" element={<ClientList />} />
-            <Route path="taller" element={<WorkshopBoard />} />
+            <Route path="taller" element={<WorkshopBoard userRole={userRole} />} />
             <Route path="inventario" element={<Inventory />} />
             <Route path="gastos" element={<Expenses />} />
             <Route path="proveedores" element={<Suppliers />} />
-            <Route path="agenda" element={<Agenda />} />
             
+            {/* OJO ACÁ: Fijate que esté el <> al principio y el </> al final */}
             {userRole === 'admin' && (
-              <Route path="equipo" element={<TeamManager />} />
+              <> 
+                <Route path="equipo" element={<TeamManager />} />
+                <Route path="auditoria" element={<AuditLog />} />
+              </>
             )}
             
             <Route path="*" element={<Navigate to="/" />} />

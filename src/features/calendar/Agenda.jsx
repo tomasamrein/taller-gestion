@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Calendar, Clock, Plus, Trash2, CheckCircle } from 'lucide-react'
+import { Calendar, Clock, Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function Agenda() {
   const [appointments, setAppointments] = useState([])
   const [newApp, setNewApp] = useState({ client_name: '', date: '', time: '', note: '' })
+  const [loading, setLoading] = useState(false) // <--- 1. NUEVO ESTADO
 
   useEffect(() => { load() }, [])
 
@@ -17,25 +18,26 @@ export default function Agenda() {
   const handleCreate = async (e) => {
     e.preventDefault()
     if(!newApp.client_name || !newApp.date || !newApp.time) return toast.error('Faltan datos')
+    
+    setLoading(true) // <--- 2. BLOQUEAMOS BOTÓN
+    
+    try {
+        const fullDate = new Date(`${newApp.date}T${newApp.time}`)
 
-    // Combinar fecha y hora
-    const fullDate = new Date(`${newApp.date}T${newApp.time}`)
-
-    await toast.promise(
-        supabase.from('appointments').insert([{
+        await supabase.from('appointments').insert([{
             client_name: newApp.client_name,
             date: fullDate.toISOString(),
             note: newApp.note
-        }]),
-        {
-            loading: 'Agendando...',
-            success: 'Turno agendado',
-            error: 'Error'
-        }
-    )
-    
-    setNewApp({ client_name: '', date: '', time: '', note: '' })
-    load()
+        }])
+        
+        toast.success('Turno agendado')
+        setNewApp({ client_name: '', date: '', time: '', note: '' })
+        load()
+    } catch (error) {
+        toast.error('Error al agendar')
+    } finally {
+        setLoading(false) // <--- 3. DESBLOQUEAMOS AL FINAL
+    }
   }
 
   const handleDelete = async (id) => {
@@ -76,11 +78,18 @@ export default function Agenda() {
                     <label className="text-xs font-bold text-gray-500 uppercase">Nota (Opcional)</label>
                     <input className="border p-2 rounded w-full bg-gray-50 outline-none focus:ring-2 focus:ring-orange-500" value={newApp.note} onChange={e => setNewApp({...newApp, note: e.target.value})} placeholder="Ej: Cambio de pastillas" />
                 </div>
-                <button className="w-full bg-orange-600 text-white py-2 rounded-lg font-bold hover:bg-orange-700 shadow-lg">Agendar</button>
+                
+                {/* 4. BOTÓN DESHABILITADO SI CARGA */}
+                <button 
+                    disabled={loading} 
+                    className="w-full bg-orange-600 text-white py-2 rounded-lg font-bold hover:bg-orange-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                    {loading ? 'Guardando...' : 'Agendar'}
+                </button>
             </form>
         </div>
 
-        {/* COLUMNA 2: LISTA DE TURNOS */}
+        {/* LISTA (Igual que antes) */}
         <div className="md:col-span-2 space-y-4">
             {appointments.length === 0 ? (
                 <div className="text-center py-10 bg-white rounded-xl border border-dashed border-gray-300">
@@ -95,7 +104,8 @@ export default function Agenda() {
                         <div key={app.id} className={`bg-white p-4 rounded-xl shadow-sm border flex justify-between items-center transition ${isToday ? 'border-l-4 border-l-orange-500' : 'border-gray-100'}`}>
                             <div className="flex gap-4 items-center">
                                 <div className={`flex flex-col items-center justify-center w-14 h-14 rounded-lg ${isToday ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-600'}`}>
-                                    <span className="text-xs font-bold uppercase">{d.toLocaleString('es-AR', { month: 'short' })}</span>
+                                    {/* Usamos UTC methods para evitar shifts en la vista de fecha */}
+                                    <span className="text-xs font-bold uppercase">{d.toLocaleDateString('es-AR', { month: 'short' })}</span>
                                     <span className="text-2xl font-bold leading-none">{d.getDate()}</span>
                                 </div>
                                 <div>

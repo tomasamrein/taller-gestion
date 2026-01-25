@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { logAction } from './auditService'
 
 // --- GASTOS ---
 export const getExpenses = async () => {
@@ -10,14 +11,32 @@ export const getExpenses = async () => {
   return data
 }
 
-export const createExpense = async (expense) => {
+export const createExpense = async (expense, userRole, userName) => {
+  // 1. Decidir estado
+  const initialStatus = userRole === 'admin' ? 'approved' : 'pending'
+
   const { error } = await supabase.from('expenses').insert([{
     description: expense.description,
     amount: expense.amount,
     category: expense.category,
-    date: new Date().toISOString().split('T')[0]
+    date: new Date().toISOString().split('T')[0],
+    status: initialStatus // <--- NUEVO CAMPO
   }])
   if (error) throw error
+
+  // 2. Loguear acción
+  await logAction(userName, 'NUEVO_GASTO', `Monto: $${expense.amount} (${initialStatus})`, 'warning')
+}
+
+// Función para que el Admin apruebe/rechace
+export const approveExpense = async (id, isApproved, userName) => {
+    if (isApproved) {
+        await supabase.from('expenses').update({ status: 'approved' }).eq('id', id)
+        await logAction(userName, 'APROBAR_GASTO', `Gasto ID ${id} aprobado`)
+    } else {
+        await supabase.from('expenses').delete().eq('id', id) // Si rechaza, lo borramos
+        await logAction(userName, 'RECHAZAR_GASTO', `Gasto ID ${id} eliminado`, 'error')
+    }
 }
 
 export const deleteExpense = async (id) => {
