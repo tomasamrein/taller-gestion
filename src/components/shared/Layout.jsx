@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Users, Wrench, Package, Wallet, Truck, Shield, LogOut, Menu, X, Calendar } from 'lucide-react'
-import NotificationCenter from './NotificationCenter' // <--- 1. IMPORTAR
+import { LayoutDashboard, Users, Wrench, Package, Wallet, Truck, Shield, LogOut, Menu, X, Calendar, Briefcase } from 'lucide-react'
+import NotificationCenter from './NotificationCenter'
 
 export default function Layout({ onLogout, userRole }) {
   const location = useLocation()
@@ -17,8 +17,10 @@ export default function Layout({ onLogout, userRole }) {
     { icon: Truck, label: 'Proveedores', path: '/proveedores' },
   ]
 
+  // AGREGAMOS LOS MENÚS DE ADMIN
   if (userRole === 'admin') {
-    menuItems.push({ icon: Shield, label: 'Auditoría', path: '/auditoria' }) // <--- Cambié "Equipo" por Auditoría directo si querés
+    menuItems.push({ icon: Briefcase, label: 'Equipo', path: '/equipo' }) // Agregado
+    menuItems.push({ icon: Shield, label: 'Auditoría', path: '/auditoria' }) // Agregado
   }
 
   return (
@@ -88,7 +90,6 @@ export default function Layout({ onLogout, userRole }) {
 
           <div className="flex items-center gap-3 ml-auto">
             
-            {/* 2. AQUÍ ESTÁ LA CAMPANA - Solo se muestra si es Admin */}
             {userRole === 'admin' && (
                 <NotificationCenter userRole={userRole} userName="Admin" />
             )}

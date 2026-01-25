@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getExpenses, createExpense, deleteExpense } from '../../services/managementService'
-import { TrendingDown, Trash2, Wallet, AlertCircle } from 'lucide-react'
+import { TrendingDown, Trash2, Wallet, AlertCircle, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function Expenses({ userRole, userName }) {
@@ -13,11 +13,16 @@ export default function Expenses({ userRole, userName }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
+    // Validar campos
+    if (!form.description || !form.amount) {
+        return toast.error('Completá todos los campos')
+    }
+
     await toast.promise(
         createExpense(form, userRole, userName),
         {
             loading: 'Procesando...',
-            success: (data) => userRole === 'admin' ? 'Gasto guardado' : 'Enviado a aprobación 👮‍♂️',
+            success: (data) => userRole === 'admin' ? 'Gasto guardado ✅' : 'Enviado a aprobación 👮‍♂️',
             error: 'Error al guardar',
         }
     )
@@ -26,20 +31,20 @@ export default function Expenses({ userRole, userName }) {
     load()
   }
 
-  // MODIFICADO: Lógica de borrado inteligente
   const handleDelete = async (id, status) => {
-    // Si está aprobado, pedimos doble confirmación porque toca la plata
+    // Si está aprobado, pedimos doble confirmación
     const mensaje = status === 'approved' 
         ? '⚠️ ¡CUIDADO! Estás por borrar un gasto YA APROBADO.\nEsto modificará el total de la caja.\n\n¿Estás seguro?'
         : '¿Borrar este gasto pendiente?'
 
-    if(confirm(mensaje)) { 
+    if(window.confirm(mensaje)) { 
         await deleteExpense(id); 
         load(); 
-        toast.success('Gasto eliminado correctamente')
+        toast.success('Gasto eliminado')
     }
   }
 
+  // Calculamos solo los APROBADOS para el total (Caja Real)
   const totalGastos = expenses
     .filter(e => e.status === 'approved') 
     .reduce((acc, curr) => acc + Number(curr.amount), 0)
@@ -47,6 +52,7 @@ export default function Expenses({ userRole, userName }) {
   return (
     <div className="p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
       
+      {/* Panel Izquierdo */}
       <div className="space-y-6">
         <div className="bg-white p-6 rounded-xl border-l-4 border-red-500 shadow-sm">
           <h3 className="text-gray-500 font-bold uppercase text-xs flex items-center gap-2 tracking-wider">
@@ -76,6 +82,7 @@ export default function Expenses({ userRole, userName }) {
             >
               <option>Insumos</option><option>Servicios</option><option>Alquiler</option><option>Varios</option>
             </select>
+            
             <button className="w-full bg-slate-800 text-white py-3 rounded-lg font-bold hover:bg-slate-700 shadow-lg transition transform active:scale-95">
                 {userRole === 'admin' ? 'Registrar Salida' : 'Solicitar Aprobación'}
             </button>
@@ -83,6 +90,7 @@ export default function Expenses({ userRole, userName }) {
         </div>
       </div>
 
+      {/* Lista Derecha */}
       <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border overflow-hidden">
         <div className="overflow-x-auto">
             <table className="w-full">
@@ -120,16 +128,19 @@ export default function Expenses({ userRole, userName }) {
                         )}
                     </td>
                     
-                    {/* AQUÍ ESTÁ LA LÓGICA DE VISIBILIDAD */}
                     <td className="p-4 text-center">
-                    {(userRole === 'admin' || ex.status === 'pending') && (
+                    {(userRole === 'admin' || ex.status === 'pending') ? (
                         <button 
                             onClick={() => handleDelete(ex.id, ex.status)} 
-                            className="text-gray-300 hover:text-red-500 transition p-2"
-                            title={ex.status === 'approved' ? "Borrar gasto aprobado (Admin)" : "Cancelar solicitud"}
+                            className="text-gray-400 hover:text-red-600 transition p-2"
+                            title={ex.status === 'approved' ? "Borrar gasto aprobado (Cuidado)" : "Cancelar solicitud"}
                         >
                             <Trash2 size={18} />
                         </button>
+                    ) : (
+                        <div className="flex justify-center p-2" title="Gasto Aprobado (Solo el Admin puede borrarlo)">
+                            <Lock size={16} className="text-gray-300" />
+                        </div>
                     )}
                     </td>
                 </tr>
