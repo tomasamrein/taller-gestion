@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getActiveOrders, updateOrderStatus } from '../../services/orderService'
-import OrderBilling from './OrderBilling'
+import OrderBilling from './orderBilling'
 import { Wrench, Calendar, MessageCircle, ArrowRight, Car, Lock } from 'lucide-react' // <--- Lock icon agregado
 import toast from 'react-hot-toast'
 
