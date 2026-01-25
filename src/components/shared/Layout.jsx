@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
-// AQUÍ ESTABA EL ERROR: Juntamos todos los íconos en una sola línea
 import { LayoutDashboard, Users, Wrench, Package, Wallet, Truck, Shield, LogOut, Menu, X, Calendar } from 'lucide-react'
+import NotificationCenter from './NotificationCenter' // <--- 1. IMPORTAR
 
 export default function Layout({ onLogout, userRole }) {
   const location = useLocation()
@@ -9,7 +9,7 @@ export default function Layout({ onLogout, userRole }) {
   
   let menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-    { icon: Calendar, label: 'Agenda Turnos', path: '/agenda' }, // <--- Botón Nuevo
+    { icon: Calendar, label: 'Agenda Turnos', path: '/agenda' },
     { icon: Users, label: 'Clientes', path: '/clientes' },
     { icon: Wrench, label: 'Taller', path: '/taller' },
     { icon: Package, label: 'Inventario', path: '/inventario' },
@@ -18,7 +18,7 @@ export default function Layout({ onLogout, userRole }) {
   ]
 
   if (userRole === 'admin') {
-    menuItems.push({ icon: Shield, label: 'Equipo', path: '/equipo' })
+    menuItems.push({ icon: Shield, label: 'Auditoría', path: '/auditoria' }) // <--- Cambié "Equipo" por Auditoría directo si querés
   }
 
   return (
@@ -87,6 +87,12 @@ export default function Layout({ onLogout, userRole }) {
           </h2>
 
           <div className="flex items-center gap-3 ml-auto">
+            
+            {/* 2. AQUÍ ESTÁ LA CAMPANA - Solo se muestra si es Admin */}
+            {userRole === 'admin' && (
+                <NotificationCenter userRole={userRole} userName="Admin" />
+            )}
+
             <div className="text-right hidden sm:block">
               <p className="text-sm font-bold text-gray-800 capitalize">{userRole || 'Usuario'}</p>
               <p className="text-xs text-green-600 font-semibold flex items-center justify-end gap-1">
