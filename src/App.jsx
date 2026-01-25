@@ -8,31 +8,50 @@ import WorkshopBoard from './features/orders/workshopBoard'
 import Inventory from './features/inventory/inventory'
 import Expenses from './features/finance/expenses'
 import Suppliers from './features/suppliers/suppliers'
-import TeamManager from './features/team/teamManager' // <--- IMPORT NUEVO
+import TeamManager from './features/team/teamManager'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [userRole, setUserRole] = useState(null) // <--- NUEVO ESTADO PARA EL ROL
+  const [userRole, setUserRole] = useState(null)
 
-  // Al cargar, revisamos si hay sesión guardada
+  // 1. Al cargar, revisamos AMBAS memorias (Local y Session)
   useEffect(() => {
-    const storedAuth = localStorage.getItem('auth') === 'true'
-    const storedRole = localStorage.getItem('role')
-    if (storedAuth) {
+    // Buscamos en LocalStorage (Persistente)
+    const localAuth = localStorage.getItem('auth') === 'true'
+    const localRole = localStorage.getItem('role')
+
+    // Buscamos en SessionStorage (Temporal)
+    const sessionAuth = sessionStorage.getItem('auth') === 'true'
+    const sessionRole = sessionStorage.getItem('role')
+
+    // Si está en cualquiera de los dos, entra
+    if (localAuth) {
       setIsAuthenticated(true)
-      setUserRole(storedRole)
+      setUserRole(localRole)
+    } else if (sessionAuth) {
+      setIsAuthenticated(true)
+      setUserRole(sessionRole)
     }
   }, [])
 
-  const handleLogin = (userData) => {
-    localStorage.setItem('auth', 'true')
-    localStorage.setItem('role', userData.role) // Guardamos el rol (admin/empleado)
+  // 2. Al loguear, decidimos dónde guardar según el "Remember Me"
+  const handleLogin = (userData, rememberMe) => {
+    if (rememberMe) {
+      localStorage.setItem('auth', 'true')
+      localStorage.setItem('role', userData.role)
+    } else {
+      sessionStorage.setItem('auth', 'true')
+      sessionStorage.setItem('role', userData.role)
+    }
+    
     setIsAuthenticated(true)
     setUserRole(userData.role)
   }
 
+  // 3. Al salir, limpiamos TODO para asegurar
   const handleLogout = () => {
     localStorage.clear()
+    sessionStorage.clear()
     setIsAuthenticated(false)
     setUserRole(null)
   }
@@ -43,7 +62,6 @@ function App() {
         {!isAuthenticated ? (
           <Route path="*" element={<Login onLogin={handleLogin} />} />
         ) : (
-          /* Pasamos el userRole al Layout para que oculte botones */
           <Route path="/" element={<Layout onLogout={handleLogout} userRole={userRole} />}>
             <Route index element={<Dashboard />} />
             <Route path="clientes" element={<ClientList />} />
@@ -52,7 +70,6 @@ function App() {
             <Route path="gastos" element={<Expenses />} />
             <Route path="proveedores" element={<Suppliers />} />
             
-            {/* Solo dejamos entrar acá si es ADMIN */}
             {userRole === 'admin' && (
               <Route path="equipo" element={<TeamManager />} />
             )}
