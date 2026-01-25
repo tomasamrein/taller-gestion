@@ -102,11 +102,11 @@ export default function Dashboard() {
             <div className="p-4 border-b bg-gray-50">
                 <h3 className="font-bold text-gray-700">Últimos Movimientos</h3>
             </div>
-            <div className="overflow-y-auto flex-1 p-0">
+            <div className="overflow-y-auto overflow-x-auto flex-1 p-0">
                 {recentActivity.length === 0 ? (
                     <p className="text-center text-gray-400 py-10">No hay movimientos aún.</p>
                 ) : (
-                    <table className="w-full">
+                    <table className="w-full min-w-[300px]">
                         <tbody className="divide-y">
                             {recentActivity.map((mov) => (
                                 <tr key={mov.id} className="hover:bg-gray-50 transition">

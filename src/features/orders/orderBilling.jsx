@@ -50,7 +50,7 @@ export default function OrderBilling({ order, onClose }) {
         </head>
         <body>
           <div class="header">
-            <div class="logo">MECÁNICA PRO</div>
+            <div class="logo">TALLER MECÁNICA</div>
             <div class="info-taller">
               Santo Tomé, Santa Fe<br>
               Tel: 342-000-0000<br>
@@ -106,7 +106,7 @@ export default function OrderBilling({ order, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header con Botón de Imprimir */}
         <div className="bg-slate-900 text-white p-4 flex justify-between items-center">

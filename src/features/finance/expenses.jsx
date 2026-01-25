@@ -52,8 +52,8 @@ export default function Expenses() {
       </div>
 
       {/* Lista Derecha con Botón Borrar */}
-      <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border overflow-hidden">
-        <table className="w-full">
+      <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border overflow-hidden-x-auto">
+        <table className="w-full min-w-[600px]">
           <thead className="bg-gray-50 border-b">
             <tr>
               <th className="p-4 text-left">Fecha</th>

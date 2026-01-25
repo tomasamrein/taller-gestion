@@ -62,8 +62,8 @@ export default function ClientList() {
       </div>
 
       {/* Tabla */}
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-        <table className="w-full text-left">
+      <div className="bg-white rounded-xl shadow-sm border overflow-hidden-x-auto">
+        <table className="w-full text-left min-w-[600px]">
           <thead className="bg-gray-50 border-b text-gray-500 text-xs uppercase">
             <tr>
               <th className="p-4">Nombre</th>
