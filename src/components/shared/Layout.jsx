@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { LayoutDashboard, Users, Wrench, Package, Wallet, Truck, Shield, LogOut, Menu, X } from 'lucide-react'
+import { LayoutDashboard, Users, Wrench, Package, Wallet, Truck, Shield, Calendar } from 'lucide-react'
 
 export default function Layout({ onLogout, userRole }) {
   const location = useLocation()
@@ -8,6 +9,7 @@ export default function Layout({ onLogout, userRole }) {
   
   let menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+    { icon: Calendar, label: 'Agenda Turnos', path: '/agenda' },
     { icon: Users, label: 'Clientes', path: '/clientes' },
     { icon: Wrench, label: 'Taller', path: '/taller' },
     { icon: Package, label: 'Inventario', path: '/inventario' },

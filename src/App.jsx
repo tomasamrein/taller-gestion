@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 import Login from './features/auth/login'
 import Layout from './components/shared/Layout'
 import Dashboard from './features/dashboard/dashboard'
@@ -9,6 +10,7 @@ import Inventory from './features/inventory/inventory'
 import Expenses from './features/finance/expenses'
 import Suppliers from './features/suppliers/suppliers'
 import TeamManager from './features/team/teamManager'
+import Agenda from './features/calendar/Agenda'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -58,6 +60,7 @@ function App() {
 
   return (
     <BrowserRouter>
+    <Toaster position="bottom-center" toastOptions={{ duration: 3000, style: { background: '#333', color: '#fff' } }} />
       <Routes>
         {!isAuthenticated ? (
           <Route path="*" element={<Login onLogin={handleLogin} />} />
@@ -69,6 +72,7 @@ function App() {
             <Route path="inventario" element={<Inventory />} />
             <Route path="gastos" element={<Expenses />} />
             <Route path="proveedores" element={<Suppliers />} />
+            <Route path="agenda" element={<Agenda />} />
             
             {userRole === 'admin' && (
               <Route path="equipo" element={<TeamManager />} />
