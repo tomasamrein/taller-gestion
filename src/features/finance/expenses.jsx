@@ -26,11 +26,20 @@ export default function Expenses({ userRole, userName }) {
     load()
   }
 
-  const handleDelete = async (id) => {
-    if(confirm('¿Borrar este gasto?')) { await deleteExpense(id); load(); }
+  // MODIFICADO: Lógica de borrado inteligente
+  const handleDelete = async (id, status) => {
+    // Si está aprobado, pedimos doble confirmación porque toca la plata
+    const mensaje = status === 'approved' 
+        ? '⚠️ ¡CUIDADO! Estás por borrar un gasto YA APROBADO.\nEsto modificará el total de la caja.\n\n¿Estás seguro?'
+        : '¿Borrar este gasto pendiente?'
+
+    if(confirm(mensaje)) { 
+        await deleteExpense(id); 
+        load(); 
+        toast.success('Gasto eliminado correctamente')
+    }
   }
 
-  // Calculamos solo los APROBADOS para el total (Caja Real)
   const totalGastos = expenses
     .filter(e => e.status === 'approved') 
     .reduce((acc, curr) => acc + Number(curr.amount), 0)
@@ -38,7 +47,6 @@ export default function Expenses({ userRole, userName }) {
   return (
     <div className="p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
       
-      {/* Panel Izquierdo */}
       <div className="space-y-6">
         <div className="bg-white p-6 rounded-xl border-l-4 border-red-500 shadow-sm">
           <h3 className="text-gray-500 font-bold uppercase text-xs flex items-center gap-2 tracking-wider">
@@ -75,7 +83,6 @@ export default function Expenses({ userRole, userName }) {
         </div>
       </div>
 
-      {/* Lista Derecha */}
       <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border overflow-hidden">
         <div className="overflow-x-auto">
             <table className="w-full">
@@ -112,9 +119,15 @@ export default function Expenses({ userRole, userName }) {
                             <span className="text-green-500 text-[10px] font-bold uppercase">Aprobado</span>
                         )}
                     </td>
+                    
+                    {/* AQUÍ ESTÁ LA LÓGICA DE VISIBILIDAD */}
                     <td className="p-4 text-center">
                     {(userRole === 'admin' || ex.status === 'pending') && (
-                        <button onClick={() => handleDelete(ex.id)} className="text-gray-300 hover:text-red-500 transition p-2">
+                        <button 
+                            onClick={() => handleDelete(ex.id, ex.status)} 
+                            className="text-gray-300 hover:text-red-500 transition p-2"
+                            title={ex.status === 'approved' ? "Borrar gasto aprobado (Admin)" : "Cancelar solicitud"}
+                        >
                             <Trash2 size={18} />
                         </button>
                     )}
