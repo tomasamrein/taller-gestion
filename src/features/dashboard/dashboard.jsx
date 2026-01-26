@@ -9,6 +9,7 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState([])
   const [recentActivity, setRecentActivity] = useState([])
 
+  // Función auxiliar para normalizar fechas y evitar problemas de zona horaria
   const fixDate = (dateString) => {
     if (!dateString) return new Date()
     if (dateString.includes('T')) return new Date(dateString)
@@ -37,12 +38,12 @@ export default function Dashboard() {
     // Filtramos gastos: Que sean de este mes Y que estén APROBADOS
     const gastosMes = todosLosGastos.filter(g => esEsteMes(g.date) && g.status === 'approved')
 
-
     // --- 2. PROCESAR DATOS ---
     const movimientosIngresos = ordenesMes.map(o => {
         const total = o.order_items.reduce((sum, i) => sum + (i.unit_price * i.quantity), 0)
         return {
-            id: `ing-${o.id}`,
+            id: `ing-${o.id}`, // ID compuesto para diferenciar
+            rawId: o.id,      // ID real para desempatar
             date: o.delivery_date || o.created_at,
             description: `Servicio ${o.vehicles?.brand} ${o.vehicles?.model}`,
             amount: total,
@@ -52,16 +53,27 @@ export default function Dashboard() {
 
     const movimientosGastos = gastosMes.map(g => ({
         id: `gas-${g.id}`,
+        rawId: g.id,
         date: g.date,
         description: g.description,
         amount: Number(g.amount),
         type: 'egreso'
     }))
 
-    // --- 3. FIX ORDEN (Más nuevo ARRIBA) ---
+    // --- 3. FIX ORDEN (Más nuevo ARRIBA + Desempate por ID) ---
     const mix = [...movimientosIngresos, ...movimientosGastos].sort((a, b) => {
-        return fixDate(b.date).getTime() - fixDate(a.date).getTime()
+        const dateA = fixDate(a.date).getTime()
+        const dateB = fixDate(b.date).getTime()
+
+        // Si las fechas son distintas, gana la más reciente
+        if (dateA !== dateB) {
+            return dateB - dateA
+        }
+
+        // Si las fechas son IGUALES (mismo día), gana el ID más alto (el último cargado)
+        return b.rawId - a.rawId
     })
+    
     setRecentActivity(mix)
 
     // Gráfico (Solo muestra días del mes actual)
@@ -97,7 +109,7 @@ export default function Dashboard() {
   return (
     <div className="animate-fade-in space-y-6 pb-10 relative">
       <div>
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">Panel principal</h1>
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">Tablero de Mando</h1>
         <p className="text-gray-500 text-sm flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
             Viendo actividad de <b>{new Date().toLocaleString('es-AR', { month: 'long' }).toUpperCase()}</b>

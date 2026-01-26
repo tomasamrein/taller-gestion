@@ -44,7 +44,7 @@ export default function Login({ onLogin }) {
               type="text" 
               className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition bg-gray-50 focus:bg-white"
               value={user} onChange={(e) => setUser(e.target.value)}
-              placeholder="Ej: admin"
+              placeholder="Tu usuario"
             />
           </div>
           
@@ -80,7 +80,7 @@ export default function Login({ onLogin }) {
         
         {/* --- PIE DE PAGINA CON SOPORTE --- */}
         <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-            <p className="text-xs text-gray-400 mb-2">v2.1 - Versión Estable</p>
+            {/* <p className="text-xs text-gray-400 mb-2">v2.1 - Versión Estable</p> */}
             <a 
                 href="https://wa.me/5493437479134?text=Hola,%20necesito%20ayuda%20para%20ingresar%20al%20sistema" 
                 target="_blank" 
