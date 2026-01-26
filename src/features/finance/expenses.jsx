@@ -8,7 +8,14 @@ export default function Expenses({ userRole, userName }) {
   const [form, setForm] = useState({ description: '', amount: '', category: 'Varios' })
 
   useEffect(() => { load() }, [])
-  const load = async () => { setExpenses(await getExpenses()) }
+
+  const load = async () => { 
+    const data = await getExpenses()
+    // FIX DE ORDEN: Ordenamos por fecha descendente (Más nuevo arriba)
+    // Asumimos que la fecha viene en formato YYYY-MM-DD o ISO
+    const sortedData = (data || []).sort((a, b) => new Date(b.date) - new Date(a.date))
+    setExpenses(sortedData) 
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
