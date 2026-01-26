@@ -11,24 +11,19 @@ import Expenses from './features/finance/expenses'
 import Suppliers from './features/suppliers/suppliers'
 import TeamManager from './features/team/teamManager'
 import Agenda from './features/calendar/Agenda'
-// IMPORTANTE: Asegurate que el archivo en la carpeta se llame AuditLog.jsx (con A mayúscula)
-import AuditLog from './features/admin/AuditLog'
+// AHORA EN MINÚSCULA (Como lo dejaste vos)
+import AuditLog from './features/admin/auditLog'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userRole, setUserRole] = useState(null)
 
-  // 1. Al cargar, revisamos AMBAS memorias (Local y Session)
   useEffect(() => {
-    // Buscamos en LocalStorage (Persistente)
     const localAuth = localStorage.getItem('auth') === 'true'
     const localRole = localStorage.getItem('role')
-
-    // Buscamos en SessionStorage (Temporal)
     const sessionAuth = sessionStorage.getItem('auth') === 'true'
     const sessionRole = sessionStorage.getItem('role')
 
-    // Si está en cualquiera de los dos, entra
     if (localAuth) {
       setIsAuthenticated(true)
       setUserRole(localRole)
@@ -72,15 +67,14 @@ function App() {
             <Route path="taller" element={<WorkshopBoard userRole={userRole} />} />
             <Route path="inventario" element={<Inventory />} />
             
-            {/* ACÁ ESTÁ LA CLAVE PARA QUE ANDEN LOS GASTOS */}
+            {/* ESTA LÍNEA ARREGLA EL BUG DE GASTOS (Le pasa el rol) */}
             <Route path="gastos" element={<Expenses userRole={userRole} userName="Admin" />} />
             
             <Route path="proveedores" element={<Suppliers />} />
             
-            {/* --- FIX DE LA PRIMERA FOTO --- */}
+            {/* ESTO ARREGLA EL ERROR ROJO DE SINTAXIS (Las etiquetas <>) */}
             {userRole === 'admin' && (
               <> 
-                {/* Notaste el <> arriba y </> abajo? Eso arregla las líneas rojas */}
                 <Route path="equipo" element={<TeamManager />} />
                 <Route path="auditoria" element={<AuditLog />} />
               </>
