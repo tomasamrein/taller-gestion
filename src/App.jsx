@@ -11,6 +11,7 @@ import Expenses from './features/finance/expenses'
 import Suppliers from './features/suppliers/suppliers'
 import TeamManager from './features/team/teamManager'
 import Agenda from './features/calendar/Agenda'
+import BillingHistory from './features/admin/billingHistory'
 // AHORA EN MINÚSCULA (Como lo dejaste vos)
 import AuditLog from './features/admin/auditLog'
 
@@ -77,6 +78,7 @@ function App() {
               <> 
                 <Route path="equipo" element={<TeamManager />} />
                 <Route path="auditoria" element={<AuditLog />} />
+                <Route path="facturacion" element={<BillingHistory />} />
               </>
             )}
             

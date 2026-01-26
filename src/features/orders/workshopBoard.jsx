@@ -2,10 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getActiveOrders, updateOrderStatus } from '../../services/orderService'
 import OrderBilling from './orderBilling'
-import { Wrench, Calendar, MessageCircle, ArrowRight, Car, Lock } from 'lucide-react' // <--- Lock icon agregado
+import { Wrench, Calendar, MessageCircle, ArrowRight, Car, Lock, FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-// 1. AHORA RECIBIMOS userRole COMO PROP
 export default function WorkshopBoard({ userRole }) {
   const [orders, setOrders] = useState([])
   const [selectedOrder, setSelectedOrder] = useState(null)
@@ -20,23 +19,30 @@ export default function WorkshopBoard({ userRole }) {
     setLoading(false)
   }
 
-  // 2. AQUÍ ESTÁ LA LÓGICA DE APROBACIÓN
   const handleStatusChange = async (id, newStatus) => {
-    
-    // Si intentan FINALIZAR y NO son admin...
+    console.log(`Cambiando estado orden ${id} a ${newStatus} con rol: ${userRole}`) // Debug
+
+    // Si es EMPLEADO intentando FINALIZAR
     if (newStatus === 'finalizado' && userRole !== 'admin') {
-        
-        // ...lo mandamos a REVISIÓN en lugar de finalizado
-        await updateOrderStatus(id, 'revision')
-        toast('Enviado a revisión del Admin 👮‍♂️', { icon: '🔒' })
-        
+        try {
+            await updateOrderStatus(id, 'revision')
+            toast('Enviado a revisión del Admin 👮‍♂️', { icon: '🔒' })
+            loadOrders() // Recargar para ver el cambio a violeta
+        } catch (error) {
+            console.error(error)
+            toast.error('Error al solicitar revisión')
+        }
     } else {
-        // Si es Admin, o si es cualquier otro cambio (ej: pendiente -> proceso), pasa directo
-        await updateOrderStatus(id, newStatus)
-        if(newStatus === 'finalizado') toast.success('Orden Finalizada y Cobrada 💰')
+        // Flujo normal (Admin o cambios menores)
+        try {
+            await updateOrderStatus(id, newStatus)
+            if(newStatus === 'finalizado') toast.success('Orden Finalizada y Cobrada 💰')
+            loadOrders()
+        } catch (error) {
+            console.error(error)
+            toast.error('Error al cambiar estado')
+        }
     }
-    
-    loadOrders()
   }
 
   const sendWhatsApp = (order) => {
@@ -54,7 +60,7 @@ export default function WorkshopBoard({ userRole }) {
     switch(status) {
       case 'pendiente': return 'bg-red-100 text-red-800 border-red-200';
       case 'en_proceso': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'revision': return 'bg-purple-100 text-purple-800 border-purple-200'; // <--- COLOR NUEVO (REVISIÓN)
+      case 'revision': return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'finalizado': return 'bg-green-100 text-green-800 border-green-200';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -123,7 +129,6 @@ export default function WorkshopBoard({ userRole }) {
 
               <div className="p-3 bg-gray-50 border-t flex flex-col gap-2">
                 
-                {/* SI ESTÁ EN REVISIÓN, BLOQUEAMOS TODO (Solo mensaje) */}
                 {order.status === 'revision' ? (
                     <div className="bg-purple-50 text-purple-700 text-xs font-bold p-2 rounded text-center border border-purple-100 flex items-center justify-center gap-2">
                         <Lock size={14}/> Esperando aprobación del Admin
@@ -148,13 +153,14 @@ export default function WorkshopBoard({ userRole }) {
                             </button>
                         )}
 
-                        {order.status !== 'finalizado' && (
+                        {/* BOTÓN DE CIERRE / SOLICITUD */}
+                        {order.status !== 'finalizado' && order.status !== 'pendiente' && (
                             <button 
                             onClick={() => handleStatusChange(order.id, 'finalizado')} 
                             className={`flex-1 text-white text-sm py-2 rounded-lg font-bold transition shadow-sm ${
                                 userRole === 'admin' 
-                                    ? 'bg-green-600 hover:bg-green-700'  // Admin ve botón verde normal
-                                    : 'bg-slate-600 hover:bg-slate-700'   // Empleado ve botón gris/serio
+                                    ? 'bg-green-600 hover:bg-green-700'
+                                    : 'bg-slate-600 hover:bg-slate-700' 
                             }`}
                             >
                             {userRole === 'admin' ? '✅ Finalizar' : '📩 Solicitar Cierre'}

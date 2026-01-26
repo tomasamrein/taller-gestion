@@ -9,7 +9,6 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState([])
   const [recentActivity, setRecentActivity] = useState([])
 
-  // Función para arreglar el bug de fechas (GMT-3)
   const fixDate = (dateString) => {
     if (!dateString) return new Date()
     if (dateString.includes('T')) return new Date(dateString)
@@ -21,10 +20,26 @@ export default function Dashboard() {
   const cargarDatos = async () => {
     const ordenesFinalizadas = await getFinishedOrdersWithItems()
     const ordenesActivas = await getActiveOrders()
-    const gastos = await getExpenses()
+    const todosLosGastos = await getExpenses()
 
-    // 1. Ingresos
-    const movimientosIngresos = ordenesFinalizadas.map(o => {
+    // --- 1. FILTRO DE MES ACTUAL ---
+    const hoy = new Date()
+    const mesActual = hoy.getMonth()
+    const anioActual = hoy.getFullYear()
+
+    const esEsteMes = (fechaStr) => {
+        const d = fixDate(fechaStr)
+        return d.getMonth() === mesActual && d.getFullYear() === anioActual
+    }
+
+    // Filtramos solo lo de este mes
+    const ordenesMes = ordenesFinalizadas.filter(o => esEsteMes(o.delivery_date || o.created_at))
+    // Filtramos gastos: Que sean de este mes Y que estén APROBADOS
+    const gastosMes = todosLosGastos.filter(g => esEsteMes(g.date) && g.status === 'approved')
+
+
+    // --- 2. PROCESAR DATOS ---
+    const movimientosIngresos = ordenesMes.map(o => {
         const total = o.order_items.reduce((sum, i) => sum + (i.unit_price * i.quantity), 0)
         return {
             id: `ing-${o.id}`,
@@ -35,8 +50,7 @@ export default function Dashboard() {
         }
     })
 
-    // 2. Gastos
-    const movimientosGastos = gastos.map(g => ({
+    const movimientosGastos = gastosMes.map(g => ({
         id: `gas-${g.id}`,
         date: g.date,
         description: g.description,
@@ -44,40 +58,37 @@ export default function Dashboard() {
         type: 'egreso'
     }))
 
-    // 3. Mezcla Cronológica Correcta
+    // --- 3. FIX ORDEN (Más nuevo ARRIBA) ---
     const mix = [...movimientosIngresos, ...movimientosGastos].sort((a, b) => {
-        return fixDate(b.date) - fixDate(a.date)
+        return fixDate(b.date).getTime() - fixDate(a.date).getTime()
     })
     setRecentActivity(mix)
 
-    // 4. Datos para el Gráfico
-    const ingresosPorMes = {}
-    movimientosIngresos.forEach(m => {
-      const mes = fixDate(m.date).toLocaleString('es-AR', { month: 'short' })
-      ingresosPorMes[mes] = (ingresosPorMes[mes] || 0) + m.amount
+    // Gráfico (Solo muestra días del mes actual)
+    const datosGrafico = {}
+    mix.forEach(m => {
+        const dia = fixDate(m.date).getDate() // Día del mes (1, 2, 25...)
+        if (!datosGrafico[dia]) datosGrafico[dia] = { name: `Día ${dia}`, Ingresos: 0, Gastos: 0 }
+        
+        if (m.type === 'ingreso') datosGrafico[dia].Ingresos += m.amount
+        else datosGrafico[dia].Gastos += m.amount
     })
     
-    const egresosPorMes = {}
-    movimientosGastos.forEach(m => {
-        const mes = fixDate(m.date).toLocaleString('es-AR', { month: 'short' })
-        egresosPorMes[mes] = (egresosPorMes[mes] || 0) + m.amount
-    })
-
-    const meses = [...new Set([...Object.keys(ingresosPorMes), ...Object.keys(egresosPorMes)])]
-    const dataFinal = meses.map(mes => ({
-      name: mes.toUpperCase(),
-      Ingresos: ingresosPorMes[mes] || 0,
-      Gastos: egresosPorMes[mes] || 0,
-    }))
+    // Ordenamos gráfico por día (1 al 31)
+    const dataFinal = Object.values(datosGrafico).sort((a,b) => 
+        parseInt(a.name.split(' ')[1]) - parseInt(b.name.split(' ')[1])
+    )
     setChartData(dataFinal)
 
-    // 5. Totales
-    const totalIngresos = Object.values(ingresosPorMes).reduce((a, b) => a + b, 0)
-    const totalGastos = Object.values(egresosPorMes).reduce((a, b) => a + b, 0)
+    // Totales
+    const totalIngresos = movimientosIngresos.reduce((sum, m) => sum + m.amount, 0)
+    const totalGastos = movimientosGastos.reduce((sum, m) => sum + m.amount, 0)
+    
+    // Pendientes no se filtran por mes, son los que hay AHORA en el taller
     const totalPendientes = ordenesActivas.filter(o => o.status !== 'finalizado').length
 
     setStats({ 
-        total: ordenesFinalizadas.length, 
+        total: ordenesMes.length, 
         gananciaNeta: totalIngresos - totalGastos,
         pendientes: totalPendientes
     })
@@ -86,22 +97,23 @@ export default function Dashboard() {
   return (
     <div className="animate-fade-in space-y-6 pb-10 relative">
       <div>
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">Rentabilidad del Taller</h1>
-        <p className="text-gray-500 text-sm lg:text-base">Resumen de caja y actividad.</p>
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">Panel principal</h1>
+        <p className="text-gray-500 text-sm flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+            Viendo actividad de <b>{new Date().toLocaleString('es-AR', { month: 'long' }).toUpperCase()}</b>
+        </p>
       </div>
 
-      {/* TARJETAS DE CONTADORES */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Autos Entregados" value={stats.total} icon={Car} color="slate" />
+        <StatCard title="Autos Entregados (Mes)" value={stats.total} icon={Car} color="slate" />
         <StatCard title="En Taller Ahora" value={stats.pendientes} icon={Wrench} color="orange" />
-        <StatCard title="Caja Neta" value={`$${stats.gananciaNeta.toLocaleString()}`} icon={Wallet} color={stats.gananciaNeta >= 0 ? "green" : "red"} />
-        <StatCard title="Movimientos" value={recentActivity.length} icon={TrendingUp} color="slate" />
+        <StatCard title="Caja Neta (Mes)" value={`$${stats.gananciaNeta.toLocaleString()}`} icon={Wallet} color={stats.gananciaNeta >= 0 ? "green" : "red"} />
+        <StatCard title="Movimientos (Mes)" value={recentActivity.length} icon={TrendingUp} color="slate" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-        {/* GRÁFICO (Ahora ocupa más espacio al sacar la torta) */}
         <div className="lg:col-span-3 bg-white p-4 lg:p-6 rounded-xl shadow-sm border border-gray-100">
-          <h3 className="font-bold text-lg text-gray-700 mb-6 border-l-4 border-orange-500 pl-3">Ingresos vs Gastos</h3>
+          <h3 className="font-bold text-lg text-gray-700 mb-6 border-l-4 border-orange-500 pl-3">Flujo de Caja (Día a Día)</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
@@ -116,16 +128,15 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* HISTORIAL DETALLADO */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col max-h-[400px]">
         <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
-            <h3 className="font-bold text-gray-700">Últimos Movimientos Financieros</h3>
+            <h3 className="font-bold text-gray-700">Movimientos del Mes</h3>
             <span className="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded font-bold">{recentActivity.length} regs</span>
         </div>
         
         <div className="overflow-y-auto overflow-x-auto flex-1 p-0">
             {recentActivity.length === 0 ? (
-                <p className="text-center text-gray-400 py-10">Sin movimientos.</p>
+                <p className="text-center text-gray-400 py-10">Sin movimientos este mes.</p>
             ) : (
                 <table className="w-full">
                     <tbody className="divide-y">

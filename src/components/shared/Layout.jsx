@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { LayoutDashboard, Users, Wrench, Package, Wallet, Truck, Shield, LogOut, Menu, X, Calendar, Briefcase } from 'lucide-react'
+import { FileText } from 'lucide-react'
 import NotificationCenter from './NotificationCenter'
 
 export default function Layout({ onLogout, userRole }) {
@@ -19,6 +20,7 @@ export default function Layout({ onLogout, userRole }) {
 
   // AGREGAMOS LOS MENÚS DE ADMIN
   if (userRole === 'admin') {
+    menuItems.push({ icon: FileText, label: 'Facturación', path: '/facturacion' }) // Nuevo 26.01
     menuItems.push({ icon: Briefcase, label: 'Equipo', path: '/equipo' }) // Agregado
     menuItems.push({ icon: Shield, label: 'Auditoría', path: '/auditoria' }) // Agregado
   }
