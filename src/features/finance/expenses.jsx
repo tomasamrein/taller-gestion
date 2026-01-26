@@ -11,16 +11,28 @@ export default function Expenses({ userRole, userName }) {
 
   const load = async () => { 
     const data = await getExpenses()
-    // FIX DE ORDEN: Ordenamos por fecha descendente (Más nuevo arriba)
-    // Asumimos que la fecha viene en formato YYYY-MM-DD o ISO
-    const sortedData = (data || []).sort((a, b) => new Date(b.date) - new Date(a.date))
+    
+    // --- LÓGICA DE ORDENAMIENTO MEJORADA ---
+    const sortedData = (data || []).sort((a, b) => {
+        // 1. Comparamos fechas
+        const dateA = new Date(a.date).getTime()
+        const dateB = new Date(b.date).getTime()
+
+        // Si son fechas distintas, el más nuevo va primero
+        if (dateA !== dateB) {
+            return dateB - dateA
+        }
+
+        // 2. Si es el MISMO día, usamos el ID para desempatar (el ID más alto es el último creado)
+        return b.id - a.id
+    })
+    
     setExpenses(sortedData) 
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    // Validar campos
     if (!form.description || !form.amount) {
         return toast.error('Completá todos los campos')
     }
@@ -39,7 +51,6 @@ export default function Expenses({ userRole, userName }) {
   }
 
   const handleDelete = async (id, status) => {
-    // Si está aprobado, pedimos doble confirmación
     const mensaje = status === 'approved' 
         ? '⚠️ ¡CUIDADO! Estás por borrar un gasto YA APROBADO.\nEsto modificará el total de la caja.\n\n¿Estás seguro?'
         : '¿Borrar este gasto pendiente?'
@@ -51,7 +62,6 @@ export default function Expenses({ userRole, userName }) {
     }
   }
 
-  // Calculamos solo los APROBADOS para el total (Caja Real)
   const totalGastos = expenses
     .filter(e => e.status === 'approved') 
     .reduce((acc, curr) => acc + Number(curr.amount), 0)
