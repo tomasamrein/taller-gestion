@@ -16,7 +16,14 @@ export default function Login({ onLogin }) {
 
     try {
       const userData = await loginUser(user, pass)
-      onLogin(userData, remember) 
+      
+      // --- CAMBIO DE SEGURIDAD ---
+      // Creamos una copia y borramos la contraseña antes de seguir
+      const usuarioSeguro = { ...userData }
+      delete usuarioSeguro.password 
+      // ---------------------------
+
+      onLogin(usuarioSeguro, remember) 
     } catch (err) {
       setError('Credenciales inválidas.')
     } finally {
