@@ -7,21 +7,34 @@ export default function BillingHistory() {
   const [history, setHistory] = useState([])
   const [expandedMonth, setExpandedMonth] = useState(null)
 
+  // Función mágica para evitar que el UTC-3 nos robe un día
+  const fixDate = (dateString) => {
+    if (!dateString) return new Date()
+    // Si ya tiene hora (T), la respetamos.
+    if (dateString.includes('T')) return new Date(dateString)
+    // Si es fecha pura (YYYY-MM-DD), le ponemos mediodía para que no reste horas y cambie de día
+    return new Date(`${dateString}T12:00:00`)
+  }
+
   useEffect(() => { load() }, [])
 
   const load = async () => {
     // 1. Traemos todo el historial
-    const orders = await getFinishedOrdersWithItems()
-    const expenses = await getExpenses()
+    const orders = await getFinishedOrdersWithItems() || []
+    const expenses = await getExpenses() || []
 
     // 2. Agrupar por Mes (Clave: '2026-01')
     const grouped = {}
 
     // Procesar Ingresos
     orders.forEach(o => {
-        const d = new Date(o.delivery_date || o.created_at)
+        // ACÁ ESTABA EL ERROR: Usamos fixDate en vez de new Date directo
+        const d = fixDate(o.delivery_date || o.created_at)
+        
+        // Ahora d.getMonth() va a dar el mes correcto porque son las 12:00 del mediodía
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-        const amount = o.order_items.reduce((sum, i) => sum + (i.unit_price * i.quantity), 0)
+        
+        const amount = o.order_items?.reduce((sum, i) => sum + (Number(i.unit_price) * Number(i.quantity)), 0) || 0
 
         if (!grouped[key]) grouped[key] = { income: 0, expense: 0, orders: 0, expenseCount: 0 }
         grouped[key].income += amount
@@ -31,9 +44,12 @@ export default function BillingHistory() {
     // Procesar Gastos (Solo Aprobados)
     expenses.forEach(e => {
         if (e.status !== 'approved') return // Ignorar pendientes
-        const d = new Date(e.date) // '2026-01-25'
-        // Truco zona horaria para agrupar bien el mes
-        const key = e.date.substring(0, 7) // Tomamos "YYYY-MM" directo del string
+        
+        // En gastos ya usabas el substring, que es seguro, pero por las dudas si usas dateObj después:
+        // const d = fixDate(e.date) 
+        
+        // Tomamos "YYYY-MM" directo del string (esto ya funcionaba bien, lo dejo igual)
+        const key = e.date.substring(0, 7) 
         
         if (!grouped[key]) grouped[key] = { income: 0, expense: 0, orders: 0, expenseCount: 0 }
         grouped[key].expense += Number(e.amount)
@@ -43,7 +59,9 @@ export default function BillingHistory() {
     // 3. Convertir a Array y Ordenar (Más nuevo primero)
     const list = Object.entries(grouped).map(([key, data]) => {
         const [year, month] = key.split('-')
-        const dateObj = new Date(year, month - 1)
+        // Creamos la fecha para el label, usando mediodía también para asegurar el nombre del mes
+        const dateObj = new Date(year, month - 1, 15) 
+        
         return {
             key,
             label: dateObj.toLocaleString('es-AR', { month: 'long', year: 'numeric' }),
