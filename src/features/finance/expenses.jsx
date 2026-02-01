@@ -14,16 +14,9 @@ export default function Expenses({ userRole, userName }) {
     
     // --- LÓGICA DE ORDENAMIENTO MEJORADA ---
     const sortedData = (data || []).sort((a, b) => {
-        // 1. Comparamos fechas
         const dateA = new Date(a.date).getTime()
         const dateB = new Date(b.date).getTime()
-
-        // Si son fechas distintas, el más nuevo va primero
-        if (dateA !== dateB) {
-            return dateB - dateA
-        }
-
-        // 2. Si es el MISMO día, usamos el ID para desempatar (el ID más alto es el último creado)
+        if (dateA !== dateB) return dateB - dateA
         return b.id - a.id
     })
     
@@ -37,11 +30,21 @@ export default function Expenses({ userRole, userName }) {
         return toast.error('Completá todos los campos')
     }
 
+    // --- FIX DE SEGURIDAD (ACÁ ESTÁ LA MAGIA) ---
+    // Leemos el usuario real de la sesión guardada en el navegador.
+    // Esto evita que si las props vienen mal, se guarde con el nombre incorrecto.
+    const sessionStr = localStorage.getItem('user_session')
+    const sessionUser = sessionStr ? JSON.parse(sessionStr) : null
+    
+    // Usamos los datos de la sesión real (o los props como respaldo)
+    const realRole = sessionUser?.role || userRole
+    const realName = sessionUser?.name || userName 
+
     await toast.promise(
-        createExpense(form, userRole, userName),
+        createExpense(form, realRole, realName), // <--- Enviamos los datos reales
         {
             loading: 'Procesando...',
-            success: (data) => userRole === 'admin' ? 'Gasto guardado ✅' : 'Enviado a aprobación 👮‍♂️',
+            success: (data) => realRole === 'admin' ? 'Gasto guardado ✅' : 'Enviado a aprobación 👮‍♂️',
             error: 'Error al guardar',
         }
     )
