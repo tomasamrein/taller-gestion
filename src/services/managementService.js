@@ -12,30 +12,37 @@ export const getExpenses = async () => {
 }
 
 export const createExpense = async (expense, userRole, userName) => {
-  // 1. Decidir estado
-  const initialStatus = userRole === 'admin' ? 'approved' : 'pending'
+  // 1. Decidir estado según el rol
+  const isAdmin = userRole === 'admin'
+  const initialStatus = isAdmin ? 'approved' : 'pending'
 
   const { error } = await supabase.from('expenses').insert([{
     description: expense.description,
     amount: expense.amount,
     category: expense.category,
-    date: new Date().toISOString().split('T')[0],
-    status: initialStatus // <--- NUEVO CAMPO
+    date: new Date().toISOString().split('T')[0], // Fecha de hoy
+    status: initialStatus
   }])
   if (error) throw error
 
-  // 2. Loguear acción
-  await logAction(userName, 'NUEVO_GASTO', `Monto: $${expense.amount} (${initialStatus})`, 'warning')
+  // 2. LOGUEAR ACCIÓN DETALLADA (Acá estaba lo que querías cambiar)
+  if (isAdmin) {
+      // Si es Admin, se registra directamente
+      await logAction(userName, 'GASTO_DIRECTO', `Registró: ${expense.description} ($${expense.amount})`, 'warning')
+  } else {
+      // Si es Empleado, queda registrado que fue una SOLICITUD
+      await logAction(userName, 'SOLICITUD_GASTO', `Solicitó autorización para: ${expense.description} ($${expense.amount})`, 'warning')
+  }
 }
 
 // Función para que el Admin apruebe/rechace
 export const approveExpense = async (id, isApproved, userName) => {
     if (isApproved) {
         await supabase.from('expenses').update({ status: 'approved' }).eq('id', id)
-        await logAction(userName, 'APROBAR_GASTO', `Gasto ID ${id} aprobado`)
+        await logAction(userName, 'APROBAR_GASTO', `Aprobó el gasto ID ${id}`)
     } else {
         await supabase.from('expenses').delete().eq('id', id) // Si rechaza, lo borramos
-        await logAction(userName, 'RECHAZAR_GASTO', `Gasto ID ${id} eliminado`, 'error')
+        await logAction(userName, 'RECHAZAR_GASTO', `Rechazó y eliminó el gasto ID ${id}`, 'error')
     }
 }
 
@@ -73,13 +80,11 @@ export const createProduct = async (product) => {
   if (error) throw error
 }
 
-// ESTA FALTABA (Borrar producto)
 export const deleteProduct = async (id) => {
   const { error } = await supabase.from('products').delete().eq('id', id)
   if (error) throw error
 }
 
-// ESTA TAMBIÉN (Actualizar stock con los botones + y -)
 export const updateStock = async (id, newStock) => {
   const { error } = await supabase
     .from('products')
