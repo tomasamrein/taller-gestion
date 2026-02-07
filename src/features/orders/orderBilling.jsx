@@ -36,147 +36,167 @@ export default function OrderBilling({ order, onClose }) {
 
   const totalOrden = items.reduce((acc, item) => acc + (item.unit_price * item.quantity), 0)
 
-  // --- LÓGICA DE IMPRESIÓN (Versión Actualizada con CUIL/Email) ---
-  const handlePrint = () => {
-    // 1. Preparamos los datos
-    const client = order.vehicles?.clients || {}
-    
-    // DEBUG: Mirá la consola (F12) para ver si llegan el email y cuil aquí.
-    console.log("Datos Cliente para Imprimir:", client)
+ // --- LÓGICA DE IMPRESIÓN MEJORADA (MÓVIL FRIENDLY) ---
+ const handlePrint = () => {
+  const client = order.vehicles?.clients || {}
+  const clientName = (client.name && client.lastname) 
+      ? `${client.name} ${client.lastname}` 
+      : (client.full_name || 'Cliente Mostrador')
 
-    // Nombre completo inteligente
-    const clientName = (client.name && client.lastname) 
-        ? `${client.name} ${client.lastname}` 
-        : (client.full_name || 'Cliente Mostrador')
+  // 1. Creamos un Iframe invisible (truco para no abrir pestañas nuevas)
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  document.body.appendChild(iframe);
 
-    const printWindow = window.open('', '', 'height=800,width=900')
-    
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Orden #${order.id} - ${clientName}</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
-            body { font-family: 'Roboto', sans-serif; padding: 20px; color: #334155; margin: 0; -webkit-print-color-adjust: exact; }
-            
-            /* Header Compacto */
-            .header-container { display: flex; justify-content: space-between; margin-bottom: 20px; border-bottom: 4px solid ${TALLER_INFO.logo_color}; padding-bottom: 10px; }
-            .company-info h1 { font-size: 24px; text-transform: uppercase; font-weight: 900; margin: 0; }
-            .company-info h1 span { color: ${TALLER_INFO.logo_color}; }
-            .company-info p { font-size: 12px; color: #64748b; margin: 2px 0; }
-            
-            .invoice-tag { background: ${TALLER_INFO.logo_color}; color: white; padding: 4px 10px; font-weight: bold; text-transform: uppercase; font-size: 12px; border-radius: 4px; display: inline-block; }
-            
-            /* Sección Cliente (Rediseñada para que entre todo) */
-            .client-section { display: flex; gap: 20px; margin-bottom: 30px; }
-            .box { flex: 1; background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 5px solid #cbd5e1; }
-            .box.highlight { border-left-color: ${TALLER_INFO.logo_color}; background: #fff7ed; }
-            
-            .box h3 { margin: 0 0 8px; font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 800; }
-            .box p.main { margin: 0 0 5px; font-size: 16px; font-weight: 700; color: #1e293b; text-transform: capitalize; }
-            
-            /* Lista de datos con iconos (simulados) */
-            .data-list { font-size: 12px; color: #475569; display: flex; flex-direction: column; gap: 4px; }
-            .data-item { display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding-bottom: 2px; }
-            .data-item strong { color: #64748b; }
-
-            /* Tabla */
-            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            thead { background-color: #1e293b; color: white; }
-            th { text-align: left; padding: 8px 10px; font-size: 11px; text-transform: uppercase; }
-            td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
-            
-            /* Totales */
-            .total-row.final { font-size: 20px; font-weight: 900; color: #0f172a; border-top: 2px solid ${TALLER_INFO.logo_color}; padding-top: 10px; }
-            
-            @media print { body { padding: 0; } }
-          </style>
-        </head>
-        <body>
+  // 2. Escribimos el contenido
+  const doc = iframe.contentWindow.document;
+  doc.open();
+  doc.write(`
+    <html>
+      <head>
+        <title>Orden_${order.id}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
           
+          body { 
+              font-family: 'Roboto', sans-serif; 
+              padding: 20px; 
+              color: #334155; 
+              margin: 0; 
+              background: white;
+          }
+          
+          /* Contenedor principal responsive */
+          .container { max-width: 800px; margin: 0 auto; }
+
+          /* Header */
+          .header-container { display: flex; flex-direction: column; gap: 10px; border-bottom: 4px solid ${TALLER_INFO.logo_color}; padding-bottom: 15px; margin-bottom: 20px; }
+          @media (min-width: 600px) { .header-container { flex-direction: row; justify-content: space-between; align-items: flex-end; } }
+          
+          .company-info h1 { font-size: 22px; text-transform: uppercase; font-weight: 900; margin: 0; line-height: 1; }
+          .company-info h1 span { color: ${TALLER_INFO.logo_color}; }
+          .company-info p { font-size: 11px; color: #64748b; margin: 4px 0; }
+          
+          .invoice-tag { background: ${TALLER_INFO.logo_color}; color: white; padding: 4px 10px; font-weight: bold; text-transform: uppercase; font-size: 11px; border-radius: 4px; display: inline-block; }
+          
+          /* Cajas Cliente/Vehículo */
+          .client-section { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+          @media (min-width: 600px) { .client-section { flex-direction: row; gap: 20px; } }
+
+          .box { flex: 1; background: #f8fafc; padding: 12px; border-radius: 8px; border-left: 4px solid #cbd5e1; }
+          .box.highlight { border-left-color: ${TALLER_INFO.logo_color}; background: #fff7ed; }
+          
+          .box h3 { margin: 0 0 5px; font-size: 10px; text-transform: uppercase; color: #94a3b8; font-weight: 800; }
+          .box p.main { margin: 0 0 5px; font-size: 14px; font-weight: 700; color: #1e293b; text-transform: capitalize; }
+          
+          .data-item { font-size: 11px; color: #475569; display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding: 2px 0; }
+          
+          /* Solicitud */
+          .solicitud { background: #f1f5f9; padding: 10px; border-radius: 6px; font-size: 12px; color: #475569; margin-bottom: 20px; border: 1px solid #e2e8f0; font-style: italic; }
+
+          /* Tabla */
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          thead { background-color: #1e293b; color: white; }
+          th { text-align: left; padding: 8px; font-size: 10px; text-transform: uppercase; }
+          td { padding: 8px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+          .text-right { text-align: right; }
+          .text-center { text-align: center; }
+          
+          /* Totales */
+          .total-row { font-size: 18px; font-weight: 900; color: #0f172a; text-align: right; padding-top: 10px; border-top: 2px solid ${TALLER_INFO.logo_color}; }
+          
+          /* Footer */
+          .footer { margin-top: 40px; text-align: center; font-size: 10px; color: #94a3b8; text-transform: uppercase; }
+
+          /* Ocultar elementos de interfaz al imprimir */
+          @media print { body { -webkit-print-color-adjust: exact; } }
+        </style>
+      </head>
+      <body>
+        <div class="container">
           <div class="header-container">
-            <div class="company-info">
+              <div class="company-info">
               <h1>${TALLER_INFO.nombre}</h1>
-              <p>${TALLER_INFO.direccion} • ${TALLER_INFO.telefono}</p>
-            </div>
-            <div style="text-align: right;">
+              <p>${TALLER_INFO.direccion}<br>${TALLER_INFO.telefono}</p>
+              </div>
+              <div style="text-align: left; margin-top: 5px;">
               <div class="invoice-tag">Orden #${order.id}</div>
-              <div style="font-size: 12px; margin-top: 5px;">${new Date().toLocaleDateString()}</div>
-            </div>
+              <div style="font-size: 11px; margin-top: 2px; color: #64748b;">${new Date().toLocaleDateString()}</div>
+              </div>
           </div>
 
           <div class="client-section">
-            <div class="box highlight">
+              <div class="box highlight">
               <h3>Cliente</h3>
               <p class="main">${clientName}</p>
-              <div class="data-list">
-                <div class="data-item">
-                    <strong>Teléfono:</strong> <span>${client.phone || '-'}</span>
-                </div>
-                <div class="data-item">
-                    <strong>Email:</strong> <span>${client.email || '-'}</span>
-                </div>
-                <div class="data-item">
-                    <strong>CUIT/CUIL:</strong> <span>${client.cuil || '-'}</span>
-                </div>
+              <div class="data-item"><span>Tel:</span> <strong>${client.phone || '-'}</strong></div>
+              <div class="data-item"><span>Email:</span> <strong>${client.email || '-'}</strong></div>
+              <div class="data-item"><span>CUIT:</span> <strong>${client.cuil || '-'}</strong></div>
               </div>
-            </div>
-            
-            <div class="box">
+              
+              <div class="box">
               <h3>Vehículo</h3>
               <p class="main">${order.vehicles?.brand} ${order.vehicles?.model}</p>
-              <div class="data-list">
-                <div class="data-item">
-                    <strong>Patente:</strong> <span>${order.vehicles?.patent || order.vehicles?.plate}</span>
-                </div>
-                <div class="data-item">
-                    <strong>Año:</strong> <span>${order.vehicles?.year || '-'}</span>
-                </div>
+              <div class="data-item"><span>Patente:</span> <strong>${order.vehicles?.patent || order.vehicles?.plate}</strong></div>
+              <div class="data-item"><span>Año:</span> <strong>${order.vehicles?.year || '-'}</strong></div>
               </div>
-            </div>
           </div>
 
-          <div style="background: #f1f5f9; padding: 10px; border-radius: 6px; font-size: 13px; color: #475569; margin-bottom: 20px; border: 1px solid #e2e8f0;">
-            <strong>SOLICITUD:</strong> ${order.description}
+          <div class="solicitud">
+              <strong>SOLICITUD:</strong> ${order.description}
           </div>
 
           <table>
-            <thead>
+              <thead>
               <tr>
-                <th width="50%">Descripción</th>
-                <th width="10%" style="text-align: center;">Cant.</th>
-                <th width="20%" style="text-align: right;">Precio</th>
-                <th width="20%" style="text-align: right;">Total</th>
+                  <th width="45%">Descripción</th>
+                  <th width="10%" class="text-center">Cant.</th>
+                  <th width="20%" class="text-right">Unitario</th>
+                  <th width="25%" class="text-right">Total</th>
               </tr>
-            </thead>
-            <tbody>
+              </thead>
+              <tbody>
               ${items.map(item => `
-                <tr>
+                  <tr>
                   <td>${item.description}</td>
-                  <td style="text-align: center;">${item.quantity}</td>
-                  <td style="text-align: right;">$${Number(item.unit_price).toLocaleString()}</td>
-                  <td style="text-align: right; font-weight: bold;">$${(item.unit_price * item.quantity).toLocaleString()}</td>
-                </tr>
+                  <td class="text-center">${item.quantity}</td>
+                  <td class="text-right">$${Number(item.unit_price).toLocaleString()}</td>
+                  <td class="text-right"><strong>$${(item.unit_price * item.quantity).toLocaleString()}</strong></td>
+                  </tr>
               `).join('')}
-            </tbody>
+              </tbody>
           </table>
 
-          <div style="display: flex; justify-content: flex-end;">
-            <div style="width: 200px; text-align: right;">
-              <div class="total-row final">
-                <span>TOTAL: $${totalOrden.toLocaleString()}</span>
-              </div>
-            </div>
+          <div class="total-row">
+              TOTAL: $${totalOrden.toLocaleString()}
           </div>
-          
-          <script>
-            window.onload = function() { window.print(); }
-          </script>
-        </body>
-      </html>
-    `)
-    printWindow.document.close()
-  }
+
+          <div class="footer">
+              Documento no válido como factura fiscal • Gracias por su confianza
+          </div>
+        </div>
+      </body>
+    </html>
+  `);
+  doc.close();
+
+  // 3. Esperamos un poquito a que cargue y lanzamos la impresión
+  setTimeout(() => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      
+      // Opcional: Eliminar el iframe después de unos segundos
+      setTimeout(() => {
+          document.body.removeChild(iframe);
+      }, 5000);
+  }, 500);
+}
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
