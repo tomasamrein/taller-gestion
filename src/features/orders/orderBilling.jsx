@@ -36,31 +36,21 @@ export default function OrderBilling({ order, onClose }) {
 
   const totalOrden = items.reduce((acc, item) => acc + (item.unit_price * item.quantity), 0)
 
- // --- LÓGICA DE IMPRESIÓN MEJORADA (MÓVIL FRIENDLY) ---
- const handlePrint = () => {
+// --- LÓGICA DE IMPRESIÓN "BLOB" (COMPATIBLE CON CELULARES 100%) ---
+const handlePrint = () => {
   const client = order.vehicles?.clients || {}
   const clientName = (client.name && client.lastname) 
       ? `${client.name} ${client.lastname}` 
       : (client.full_name || 'Cliente Mostrador')
 
-  // 1. Creamos un Iframe invisible (truco para no abrir pestañas nuevas)
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = '0';
-  document.body.appendChild(iframe);
-
-  // 2. Escribimos el contenido
-  const doc = iframe.contentWindow.document;
-  doc.open();
-  doc.write(`
-    <html>
+  // 1. Armamos el HTML completo
+  const invoiceHTML = `
+    <!DOCTYPE html>
+    <html lang="es">
       <head>
+        <meta charset="UTF-8">
         <title>Orden_${order.id}</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
           
@@ -69,11 +59,18 @@ export default function OrderBilling({ order, onClose }) {
               padding: 20px; 
               color: #334155; 
               margin: 0; 
-              background: white;
+              background: #f8fafc; /* Fondo grisecito para que resalte la hoja */
           }
           
-          /* Contenedor principal responsive */
-          .container { max-width: 800px; margin: 0 auto; }
+          /* Simulación de Hoja A4 */
+          .page {
+              background: white;
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 20px;
+              box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+              border-radius: 8px;
+          }
 
           /* Header */
           .header-container { display: flex; flex-direction: column; gap: 10px; border-bottom: 4px solid ${TALLER_INFO.logo_color}; padding-bottom: 15px; margin-bottom: 20px; }
@@ -85,6 +82,34 @@ export default function OrderBilling({ order, onClose }) {
           
           .invoice-tag { background: ${TALLER_INFO.logo_color}; color: white; padding: 4px 10px; font-weight: bold; text-transform: uppercase; font-size: 11px; border-radius: 4px; display: inline-block; }
           
+          /* Botón Flotante para Celular */
+          .print-btn-container {
+              text-align: center;
+              margin-bottom: 20px;
+          }
+          .print-btn {
+              background: #2563eb;
+              color: white;
+              border: none;
+              padding: 12px 25px;
+              border-radius: 50px;
+              font-size: 14px;
+              font-weight: bold;
+              cursor: pointer;
+              box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+              display: inline-flex;
+              align-items: center;
+              gap: 8px;
+              text-decoration: none;
+          }
+          
+          /* Ocultar el botón y fondo gris al imprimir (para que salga tinta blanca) */
+          @media print { 
+              body { background: white; padding: 0; }
+              .page { box-shadow: none; margin: 0; padding: 0; }
+              .print-btn-container { display: none; }
+          }
+
           /* Cajas Cliente/Vehículo */
           .client-section { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
           @media (min-width: 600px) { .client-section { flex-direction: row; gap: 20px; } }
@@ -97,9 +122,6 @@ export default function OrderBilling({ order, onClose }) {
           
           .data-item { font-size: 11px; color: #475569; display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding: 2px 0; }
           
-          /* Solicitud */
-          .solicitud { background: #f1f5f9; padding: 10px; border-radius: 6px; font-size: 12px; color: #475569; margin-bottom: 20px; border: 1px solid #e2e8f0; font-style: italic; }
-
           /* Tabla */
           table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
           thead { background-color: #1e293b; color: white; }
@@ -108,18 +130,19 @@ export default function OrderBilling({ order, onClose }) {
           .text-right { text-align: right; }
           .text-center { text-align: center; }
           
-          /* Totales */
           .total-row { font-size: 18px; font-weight: 900; color: #0f172a; text-align: right; padding-top: 10px; border-top: 2px solid ${TALLER_INFO.logo_color}; }
-          
-          /* Footer */
           .footer { margin-top: 40px; text-align: center; font-size: 10px; color: #94a3b8; text-transform: uppercase; }
-
-          /* Ocultar elementos de interfaz al imprimir */
-          @media print { body { -webkit-print-color-adjust: exact; } }
         </style>
       </head>
       <body>
-        <div class="container">
+        
+        <div class="print-btn-container">
+          <button onclick="window.print()" class="print-btn">
+             🖨️ IMPRIMIR / DESCARGAR PDF
+          </button>
+        </div>
+
+        <div class="page">
           <div class="header-container">
               <div class="company-info">
               <h1>${TALLER_INFO.nombre}</h1>
@@ -148,7 +171,7 @@ export default function OrderBilling({ order, onClose }) {
               </div>
           </div>
 
-          <div class="solicitud">
+          <div style="background: #f1f5f9; padding: 10px; border-radius: 6px; font-size: 12px; color: #475569; margin-bottom: 20px; border: 1px solid #e2e8f0; font-style: italic;">
               <strong>SOLICITUD:</strong> ${order.description}
           </div>
 
@@ -183,19 +206,14 @@ export default function OrderBilling({ order, onClose }) {
         </div>
       </body>
     </html>
-  `);
-  doc.close();
+  `;
 
-  // 3. Esperamos un poquito a que cargue y lanzamos la impresión
-  setTimeout(() => {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-      
-      // Opcional: Eliminar el iframe después de unos segundos
-      setTimeout(() => {
-          document.body.removeChild(iframe);
-      }, 5000);
-  }, 500);
+  // 2. Crear un Blob (Archivo en memoria) y abrirlo
+  const blob = new Blob([invoiceHTML], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  
+  // Abrir en pestaña nueva (esto evita los bloqueos de iframe)
+  window.open(url, '_blank');
 }
 
   return (
