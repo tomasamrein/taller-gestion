@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { getOrderItems, addOrderItem } from '../../services/orderService'
-import { Trash, Plus, Share2, Download, X, DollarSign } from 'lucide-react'
+import { Trash, Plus, Share2, Download, X, DollarSign, MessageCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
@@ -11,10 +11,8 @@ export default function OrderBilling({ order, onClose }) {
   const [loading, setLoading] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   
-  // Referencia para la "Factura Fantasma"
   const invoiceRef = useRef(null)
   
-  // --- TUS DATOS ---
   const TALLER_INFO = {
     nombre: "TALLER MECÁNICA",
     direccion: "Av. Completar 0000, Santa Fe",
@@ -42,87 +40,132 @@ export default function OrderBilling({ order, onClose }) {
 
   const totalOrden = items.reduce((acc, item) => acc + (item.unit_price * item.quantity), 0)
 
-  // --- MAGIA: GENERAR PDF Y COMPARTIR ---
+  // --- GENERACIÓN DE PDF ---
   const generatePDFBlob = async () => {
     if (!invoiceRef.current) return null
-    
-    // 1. Capturamos la "Factura Fantasma" como imagen
-    const canvas = await html2canvas(invoiceRef.current, { 
-        scale: 2, // Mejor calidad
-        useCORS: true, 
-        backgroundColor: '#ffffff' 
-    })
-    
-    // 2. Creamos el PDF A4
+    const canvas = await html2canvas(invoiceRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' })
     const imgData = canvas.toDataURL('image/png')
     const pdf = new jsPDF('p', 'mm', 'a4')
     const pdfWidth = pdf.internal.pageSize.getWidth()
     const pdfHeight = (canvas.height * pdfWidth) / canvas.width
-    
     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
     return pdf
   }
 
-  const handleShare = async () => {
+  // --- OPCIÓN 1: COMPARTIR PDF (NATIVO MÓVIL) ---
+  const handleShareWhatsApp = async () => {
     setIsGenerating(true)
     const toastId = toast.loading('Generando PDF...')
     
     try {
       const pdf = await generatePDFBlob()
-      
-      // Convertimos a archivo real
       const blob = pdf.output('blob')
-      const file = new File([blob], `Orden_${order.id}.pdf`, { type: 'application/pdf' })
+      
+      // Nombre del archivo personalizado con el apellido del cliente
+      const clientName = order.vehicles?.clients?.lastname || 'Cliente'
+      const fileName = `Presupuesto_${clientName}_${order.id}.pdf`
+      
+      const file = new File([blob], fileName, { type: 'application/pdf' })
 
-      // INTENTAMOS COMPARTIR (NATIVO DEL CELULAR)
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        // Esto abre el menú nativo del celular (Emi elige WhatsApp y el contacto)
         await navigator.share({
           files: [file],
-          title: `Orden #${order.id} - ${TALLER_INFO.nombre}`,
-          text: `Hola! Acá te adjunto el presupuesto de tu vehículo.`
+          title: `Presupuesto Taller - Orden #${order.id}`,
+          text: `Hola ${order.vehicles?.clients?.name || ''}, acá te adjunto el presupuesto.`
         })
-        toast.success('Abriendo WhatsApp...', { id: toastId })
+        toast.success('¡Listo! Elegí WhatsApp', { id: toastId })
       } else {
-        // Fallback para PC (Descarga directa)
-        pdf.save(`Orden_${order.id}.pdf`)
-        toast.success('PDF Descargado (Tu dispositivo no soporta compartir directo)', { id: toastId })
+        // Si está en PC y no puede compartir, se lo descargamos
+        pdf.save(fileName)
+        toast.success('Descargado (Tu PC no soporta envío directo)', { id: toastId })
       }
     } catch (e) {
       console.error(e)
-      toast.error('Error al generar PDF', { id: toastId })
+      toast.error('Error al generar', { id: toastId })
     } finally {
       setIsGenerating(false)
     }
+  }
+
+  // --- OPCIÓN 2: DESCARGAR (PARA PC) ---
+  const handleDownload = async () => {
+    setIsGenerating(true)
+    try {
+        const pdf = await generatePDFBlob()
+        const clientName = order.vehicles?.clients?.lastname || 'Cliente'
+        pdf.save(`Presupuesto_${clientName}_${order.id}.pdf`)
+        toast.success('PDF Descargado')
+    } catch (e) {
+        toast.error('Error al descargar')
+    } finally {
+        setIsGenerating(false)
+    }
+  }
+
+  // --- OPCIÓN 3: ABRIR CHAT (SOLO TEXTO) ---
+  const handleOpenChat = () => {
+      const phone = order.vehicles?.clients?.phone
+      if (!phone) return toast.error('El cliente no tiene teléfono')
+      
+      // Limpiamos el número para WhatsApp
+      let num = phone.replace(/\D/g, '')
+      if (num.startsWith('0')) num = num.substring(1)
+      if (!num.startsWith('54')) num = '549' + num
+
+      const text = `Hola ${order.vehicles?.clients?.name || ''}, te escribo por el presupuesto del ${order.vehicles?.model}.`
+      window.open(`https://wa.me/${num}?text=${encodeURIComponent(text)}`, '_blank')
   }
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
         
-        {/* HEADER MODAL */}
-        <div className="bg-slate-900 text-white p-4 flex justify-between items-center border-b-4 border-orange-500">
-          <div>
-            <h2 className="text-lg font-bold flex items-center gap-2">
-                <DollarSign className="text-orange-500" size={20} /> Detalle de Costos
-            </h2>
-            <p className="text-xs text-gray-400">Orden #{order.id}</p>
+        {/* HEADER MODAL CON BOTONERA POWER */}
+        <div className="bg-slate-900 text-white p-3 flex flex-col gap-3 border-b-4 border-orange-500">
+          <div className="flex justify-between items-start">
+              <div>
+                <h2 className="text-lg font-bold flex items-center gap-2">
+                    <DollarSign className="text-orange-500" size={20} /> Costos
+                </h2>
+                <p className="text-xs text-gray-400">Orden #{order.id}</p>
+              </div>
+              <button onClick={onClose} className="text-gray-400 hover:text-white px-2 rounded"><X size={24}/></button>
           </div>
+
+          {/* BOTONERA DE ACCIONES */}
           <div className="flex gap-2">
             
-            {/* BOTÓN COMPARTIR (El que usa Emi en el celu) */}
+            {/* 1. ENVIAR PDF (La estrella) */}
             <button 
-              onClick={handleShare} 
+              onClick={handleShareWhatsApp} 
               disabled={isGenerating}
-              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 transition shadow disabled:opacity-50"
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition shadow disabled:opacity-50"
             >
-              {isGenerating ? '...' : <><Share2 size={16} /> <span className="hidden sm:inline">PDF / Compartir</span></>}
+              {isGenerating ? '...' : <><Share2 size={16} /> Enviar PDF</>}
             </button>
 
-            <button onClick={onClose} className="text-gray-400 hover:text-white px-2 hover:bg-slate-800 rounded transition"><X size={20}/></button>
+            {/* 2. SOLO CHAT */}
+            <button 
+              onClick={handleOpenChat}
+              className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition"
+              title="Abrir Chat de WhatsApp"
+            >
+              <MessageCircle size={16} />
+            </button>
+
+            {/* 3. DESCARGAR */}
+            <button 
+              onClick={handleDownload}
+              className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition"
+              title="Descargar en el dispositivo"
+            >
+              <Download size={16} />
+            </button>
           </div>
         </div>
 
-        {/* BODY (LISTA DE ITEMS PARA EDITAR) */}
+        {/* BODY */}
         <div className="p-6 flex-1 overflow-y-auto">
           <div className="space-y-2 mb-6">
              {items.length === 0 ? <p className="text-gray-400 text-center py-4 italic">Sin items cargados.</p> : 
@@ -153,12 +196,11 @@ export default function OrderBilling({ order, onClose }) {
       </div>
 
       {/* ================================================================================== */}
-      {/* FACTURA FANTASMA (ESTILOS CORREGIDOS AQUÍ) */}
+      {/* FACTURA FANTASMA (Tus estilos corregidos) */}
       {/* ================================================================================== */}
       <div style={{ position: 'absolute', top: 0, left: '-9999px', width: '210mm', minHeight: '297mm', background: 'white' }}>
          <div ref={invoiceRef} className="p-12 text-slate-800 font-sans" style={{ width: '100%' }}>
             
-            {/* CABECERA PDF */}
             <div className="flex justify-between border-b-4 border-orange-500 pb-6 mb-8">
                 <div>
                     <h1 className="text-4xl font-black uppercase tracking-tight">{TALLER_INFO.nombre}</h1>
@@ -166,7 +208,6 @@ export default function OrderBilling({ order, onClose }) {
                     <p className="text-sm text-gray-500">{TALLER_INFO.telefono}</p>
                 </div>
                 <div className="text-right">
-                    {/* CAMBIO 1: Más padding (py-2 px-6) para que respire el texto */}
                     <div className="bg-orange-600 text-white px-6 py-2 font-bold rounded-lg inline-block mb-2 text-sm tracking-wide">
                         PRESUPUESTO
                     </div>
@@ -175,7 +216,6 @@ export default function OrderBilling({ order, onClose }) {
                 </div>
             </div>
 
-            {/* DATOS CLIENTE PDF */}
             <div className="flex gap-10 mb-10">
                 <div className="flex-1 bg-gray-50 p-6 rounded-lg border-l-8 border-orange-500">
                     <h3 className="text-xs font-bold text-gray-400 uppercase mb-3 tracking-wider">Cliente</h3>
@@ -199,11 +239,9 @@ export default function OrderBilling({ order, onClose }) {
                 </div>
             </div>
 
-            {/* TABLA PDF */}
             <table className="w-full mb-10">
                 <thead className="bg-slate-900 text-white text-xs uppercase tracking-wider">
                     <tr>
-                        {/* CAMBIO 2: Padding py-4 para que la barra negra sea más alta */}
                         <th className="py-4 px-6 text-left">Descripción</th>
                         <th className="py-4 px-6 text-center">Cant.</th>
                         <th className="py-4 px-6 text-right">Precio Unit.</th>
@@ -222,7 +260,6 @@ export default function OrderBilling({ order, onClose }) {
                 </tbody>
             </table>
 
-            {/* TOTALES PDF */}
             <div className="flex justify-end">
                 <div className="w-72">
                     <div className="flex justify-between py-3 border-b border-gray-200 text-gray-500 font-medium">
@@ -243,7 +280,6 @@ export default function OrderBilling({ order, onClose }) {
             </div>
          </div>
       </div>
-
     </div>
   )
 }
