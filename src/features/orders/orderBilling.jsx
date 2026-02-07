@@ -7,6 +7,15 @@ export default function OrderBilling({ order, onClose }) {
   const [newItem, setNewItem] = useState({ description: '', unit_price: '', quantity: 1, item_type: 'repuesto' })
   const [loading, setLoading] = useState(false)
 
+  // --- CONFIGURACIÓN DE TU TALLER (EDITALO ACÁ) ---
+  const TALLER_INFO = {
+    nombre: "TALLER MECÁNICA", // O el nombre que use Emi
+    direccion: "Av. Completar 0000, Santo Tomé",
+    telefono: "342-155-0000",
+    email: "tallermecanica@email.com",
+    logo_color: "#ea580c" // El naranja que le gustó
+  }
+
   useEffect(() => { loadItems() }, [])
 
   const loadItems = async () => {
@@ -27,139 +36,148 @@ export default function OrderBilling({ order, onClose }) {
 
   const totalOrden = items.reduce((acc, item) => acc + (item.unit_price * item.quantity), 0)
 
-  // --- NUEVO DISEÑO PROFESIONAL (ESTILO INDUSTRIAL) ---
+  // --- LÓGICA DE IMPRESIÓN (Versión Actualizada con CUIL/Email) ---
   const handlePrint = () => {
+    // 1. Preparamos los datos
+    const client = order.vehicles?.clients || {}
+    
+    // DEBUG: Mirá la consola (F12) para ver si llegan el email y cuil aquí.
+    console.log("Datos Cliente para Imprimir:", client)
+
+    // Nombre completo inteligente
+    const clientName = (client.name && client.lastname) 
+        ? `${client.name} ${client.lastname}` 
+        : (client.full_name || 'Cliente Mostrador')
+
     const printWindow = window.open('', '', 'height=800,width=900')
+    
     printWindow.document.write(`
       <html>
         <head>
-          <title>Presupuesto #${order.id}</title>
+          <title>Orden #${order.id} - ${clientName}</title>
           <style>
-            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
+            body { font-family: 'Roboto', sans-serif; padding: 20px; color: #334155; margin: 0; -webkit-print-color-adjust: exact; }
             
-            body { font-family: 'Roboto', sans-serif; padding: 40px; color: #334155; margin: 0; }
+            /* Header Compacto */
+            .header-container { display: flex; justify-content: space-between; margin-bottom: 20px; border-bottom: 4px solid ${TALLER_INFO.logo_color}; padding-bottom: 10px; }
+            .company-info h1 { font-size: 24px; text-transform: uppercase; font-weight: 900; margin: 0; }
+            .company-info h1 span { color: ${TALLER_INFO.logo_color}; }
+            .company-info p { font-size: 12px; color: #64748b; margin: 2px 0; }
             
-            /* Encabezado */
-            .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; border-bottom: 3px solid #ea580c; padding-bottom: 20px; }
-            .company-info h1 { margin: 0; font-size: 28px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
-            .company-info h1 span { color: #ea580c; }
-            .company-info p { margin: 5px 0 0; font-size: 13px; color: #64748b; }
+            .invoice-tag { background: ${TALLER_INFO.logo_color}; color: white; padding: 4px 10px; font-weight: bold; text-transform: uppercase; font-size: 12px; border-radius: 4px; display: inline-block; }
             
-            .invoice-details { text-align: right; }
-            .invoice-tag { background: #ea580c; color: white; padding: 5px 15px; font-weight: bold; text-transform: uppercase; font-size: 14px; border-radius: 4px; display: inline-block; margin-bottom: 10px; }
-            .invoice-meta { font-size: 13px; color: #64748b; font-weight: 500; }
+            /* Sección Cliente (Rediseñada para que entre todo) */
+            .client-section { display: flex; gap: 20px; margin-bottom: 30px; }
+            .box { flex: 1; background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 5px solid #cbd5e1; }
+            .box.highlight { border-left-color: ${TALLER_INFO.logo_color}; background: #fff7ed; }
             
-            /* Cliente y Vehículo */
-            .client-section { display: flex; gap: 40px; margin-bottom: 40px; }
-            .box { flex: 1; background: #f8fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #cbd5e1; }
-            .box.highlight { border-left-color: #ea580c; background: #fff7ed; }
+            .box h3 { margin: 0 0 8px; font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 800; }
+            .box p.main { margin: 0 0 5px; font-size: 16px; font-weight: 700; color: #1e293b; text-transform: capitalize; }
             
-            .box h3 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; color: #94a3b8; font-weight: 700; letter-spacing: 0.5px; }
-            .box p { margin: 0; font-size: 15px; font-weight: 500; color: #1e293b; line-height: 1.5; }
-            .box .sub { font-size: 13px; color: #64748b; font-weight: 400; }
-            
+            /* Lista de datos con iconos (simulados) */
+            .data-list { font-size: 12px; color: #475569; display: flex; flex-direction: column; gap: 4px; }
+            .data-item { display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding-bottom: 2px; }
+            .data-item strong { color: #64748b; }
+
             /* Tabla */
-            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
             thead { background-color: #1e293b; color: white; }
-            th { text-align: left; padding: 12px 15px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-            td { padding: 12px 15px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
-            tr:nth-child(even) { background-color: #f8fafc; }
+            th { text-align: left; padding: 8px 10px; font-size: 11px; text-transform: uppercase; }
+            td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
             
             /* Totales */
-            .total-section { display: flex; justify-content: flex-end; margin-top: 20px; }
-            .total-box { width: 250px; text-align: right; }
-            .total-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #64748b; }
-            .total-row.final { border-bottom: none; border-top: 2px solid #ea580c; color: #0f172a; font-size: 20px; font-weight: bold; margin-top: 10px; padding-top: 15px; }
+            .total-row.final { font-size: 20px; font-weight: 900; color: #0f172a; border-top: 2px solid ${TALLER_INFO.logo_color}; padding-top: 10px; }
             
-            /* Footer */
-            .footer { margin-top: 60px; text-align: center; border-top: 1px dashed #cbd5e1; padding-top: 20px; font-size: 12px; color: #94a3b8; }
-            
-            @media print { body { padding: 20px; } }
+            @media print { body { padding: 0; } }
           </style>
         </head>
         <body>
           
           <div class="header-container">
             <div class="company-info">
-              <h1>Taller <span>Mecánica</span></h1>
-              <p>Servicio Automotriz Integral</p>
-              <p>Santo Tomé, Santa Fe • Tel: (342) 000-0000</p>
+              <h1>${TALLER_INFO.nombre}</h1>
+              <p>${TALLER_INFO.direccion} • ${TALLER_INFO.telefono}</p>
             </div>
-            <div class="invoice-details">
-              <div class="invoice-tag">Presupuesto</div>
-              <div class="invoice-meta">
-                Fecha: ${new Date().toLocaleDateString()}<br>
-                Orden #: ${order.id.toString().padStart(6, '0')}
-              </div>
+            <div style="text-align: right;">
+              <div class="invoice-tag">Orden #${order.id}</div>
+              <div style="font-size: 12px; margin-top: 5px;">${new Date().toLocaleDateString()}</div>
             </div>
           </div>
 
           <div class="client-section">
             <div class="box highlight">
               <h3>Cliente</h3>
-              <p>${order.vehicles?.clients?.full_name}</p>
-              <p class="sub">${order.vehicles?.clients?.phone || 'Sin teléfono'}</p>
+              <p class="main">${clientName}</p>
+              <div class="data-list">
+                <div class="data-item">
+                    <strong>Teléfono:</strong> <span>${client.phone || '-'}</span>
+                </div>
+                <div class="data-item">
+                    <strong>Email:</strong> <span>${client.email || '-'}</span>
+                </div>
+                <div class="data-item">
+                    <strong>CUIT/CUIL:</strong> <span>${client.cuil || '-'}</span>
+                </div>
+              </div>
             </div>
+            
             <div class="box">
               <h3>Vehículo</h3>
-              <p>${order.vehicles?.brand} ${order.vehicles?.model}</p>
-              <p class="sub">Patente: <strong>${order.vehicles?.patent}</strong> • Año: ${order.vehicles?.year || '-'}</p>
+              <p class="main">${order.vehicles?.brand} ${order.vehicles?.model}</p>
+              <div class="data-list">
+                <div class="data-item">
+                    <strong>Patente:</strong> <span>${order.vehicles?.patent || order.vehicles?.plate}</span>
+                </div>
+                <div class="data-item">
+                    <strong>Año:</strong> <span>${order.vehicles?.year || '-'}</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div style="margin-bottom: 20px; padding: 10px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px;">
-            <strong style="color: #ea580c; font-size: 12px; text-transform: uppercase;">Diagnóstico / Solicitud:</strong>
-            <p style="margin: 5px 0 0; font-size: 14px; color: #334155;">${order.description}</p>
+          <div style="background: #f1f5f9; padding: 10px; border-radius: 6px; font-size: 13px; color: #475569; margin-bottom: 20px; border: 1px solid #e2e8f0;">
+            <strong>SOLICITUD:</strong> ${order.description}
           </div>
 
           <table>
             <thead>
               <tr>
                 <th width="50%">Descripción</th>
-                <th width="15%">Tipo</th>
                 <th width="10%" style="text-align: center;">Cant.</th>
-                <th width="12%" style="text-align: right;">Precio Unit.</th>
-                <th width="13%" style="text-align: right;">Total</th>
+                <th width="20%" style="text-align: right;">Precio</th>
+                <th width="20%" style="text-align: right;">Total</th>
               </tr>
             </thead>
             <tbody>
               ${items.map(item => `
                 <tr>
                   <td>${item.description}</td>
-                  <td style="text-transform: capitalize; font-size: 12px; color: #64748b;">${item.item_type.replace('_', ' ')}</td>
                   <td style="text-align: center;">${item.quantity}</td>
-                  <td style="text-align: right;">$${item.unit_price}</td>
-                  <td style="text-align: right; font-weight: 500;">$${item.unit_price * item.quantity}</td>
+                  <td style="text-align: right;">$${Number(item.unit_price).toLocaleString()}</td>
+                  <td style="text-align: right; font-weight: bold;">$${(item.unit_price * item.quantity).toLocaleString()}</td>
                 </tr>
               `).join('')}
             </tbody>
           </table>
 
-          <div class="total-section">
-            <div class="total-box">
-              <div class="total-row">
-                <span>Subtotal:</span>
-                <span>$${totalOrden.toLocaleString()}</span>
-              </div>
+          <div style="display: flex; justify-content: flex-end;">
+            <div style="width: 200px; text-align: right;">
               <div class="total-row final">
-                <span>TOTAL:</span>
-                <span>$${totalOrden.toLocaleString()}</span>
+                <span>TOTAL: $${totalOrden.toLocaleString()}</span>
               </div>
             </div>
           </div>
-
-          <div class="footer">
-            Documento no válido como factura fiscal. Presupuesto válido por 15 días.<br>
-            Gracias por confiar en <strong>Taller Mecánica</strong>.
-          </div>
+          
+          <script>
+            window.onload = function() { window.print(); }
+          </script>
         </body>
       </html>
     `)
     printWindow.document.close()
-    printWindow.print()
   }
 
-  // --- RENDERIZADO DEL MODAL (IGUAL QUE ANTES) ---
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
@@ -169,21 +187,23 @@ export default function OrderBilling({ order, onClose }) {
             <h2 className="text-lg font-bold flex items-center gap-2">
                 <DollarSign className="text-orange-500" size={20} /> Detalle de Costos
             </h2>
-            <p className="text-xs text-gray-400">{order.vehicles?.brand} {order.vehicles?.model} - {order.vehicles?.patent}</p>
+            <p className="text-xs text-gray-400">Orden #{order.id}</p>
           </div>
           <div className="flex gap-2">
+            {/* BOTÓN IMPRIMIR / DESCARGAR */}
             <button 
               onClick={handlePrint} 
-              className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 transition shadow border border-slate-600"
-              title="Imprimir Comprobante"
+              className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition shadow-lg transform active:scale-95"
+              title="Abre vista previa para Imprimir o Guardar como PDF"
             >
-              <Printer size={16} /> <span className="hidden sm:inline">Imprimir</span>
+              <Printer size={18} /> <span className="hidden sm:inline">Imprimir / PDF</span>
             </button>
             <button onClick={onClose} className="text-gray-400 hover:text-white px-2 hover:bg-slate-800 rounded transition">✕</button>
           </div>
         </div>
 
         <div className="p-6 flex-1 overflow-y-auto">
+          {/* ... (EL RESTO DEL CONTENIDO ES IGUAL AL QUE YA TENÍAS) ... */}
           <div className="space-y-2 mb-6">
             {items.length === 0 ? (
               <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-300">
@@ -194,7 +214,7 @@ export default function OrderBilling({ order, onClose }) {
                 <div key={item.id} className="flex justify-between items-center border-b border-gray-100 pb-2 last:border-0 hover:bg-orange-50 p-2 rounded transition">
                   <div>
                     <p className="font-bold text-gray-800 text-sm">{item.description}</p>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{item.item_type} (x{item.quantity})</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{item.item_type === 'mano_obra' ? 'Mano de Obra' : 'Repuesto'} (x{item.quantity})</p>
                   </div>
                   <span className="font-bold text-gray-700 font-mono">${(item.unit_price * item.quantity).toLocaleString()}</span>
                 </div>

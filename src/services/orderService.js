@@ -1,52 +1,59 @@
 import { supabase } from '../lib/supabase'
 
-// --- ESTA FALTABA (CREAR NUEVA ORDEN) ---
 export const createOrder = async (order) => {
-  const { error } = await supabase.from('work_orders').insert([{
-    vehicle_id: order.vehicle_id,
-    description: order.description,
-    status: 'pendiente' // Arranca siempre pendiente
-  }])
+  const { data, error } = await supabase.from('work_orders')
+    .insert([{
+      vehicle_id: order.vehicle_id,
+      description: order.description,
+      status: 'pendiente' 
+    }])
+    .select() // Agregué esto por si necesitas el ID de la orden recién creada
+  
   if (error) throw error
+  return data
 }
 
-// Traer órdenes activas (pendientes, en proceso o en revisión)
+// --- ACÁ ESTABA EL PROBLEMA ---
 export const getActiveOrders = async () => {
   const { data, error } = await supabase
     .from('work_orders')
     .select(`
       *,
       vehicles (
-        brand, model, year, patent,
-        clients ( full_name, phone )
+        *,
+        clients ( * ) 
       )
     `)
-    .neq('status', 'finalizado') // Trae todo lo que NO esté finalizado
+    // NOTA: Al poner clients (*) le decimos que traiga email, cuil, nombre, apellido, TODO.
+    .neq('status', 'finalizado')
     .order('updated_at', { ascending: false })
   
-  if (error) console.error(error)
+  if (error) {
+    console.error('Error fetching orders:', error)
+    return []
+  }
   return data || []
 }
 
-// Traer órdenes finalizadas (para el dashboard y la caja)
 export const getFinishedOrdersWithItems = async () => {
   const { data, error } = await supabase
     .from('work_orders')
     .select(`
       *,
-      vehicles ( brand, model ),
+      vehicles (
+        *,
+        clients ( * )
+      ),
       order_items ( * )
     `)
     .eq('status', 'finalizado')
-    .order('delivery_date', { ascending: false })
+    .order('updated_at', { ascending: false }) // Cambié a updated_at por si delivery_date es null
 
   if (error) console.error(error)
   return data || []
 }
 
-// CAMBIAR ESTADO (Aprobaciones y flujo de trabajo)
 export const updateOrderStatus = async (id, status) => {
-  // Si finalizamos, guardamos la fecha de entrega. Si no, solo actualizamos el status.
   const updates = { 
     status, 
     updated_at: new Date().toISOString() 
@@ -64,9 +71,14 @@ export const updateOrderStatus = async (id, status) => {
   if (error) throw error
 }
 
-// FUNCIONES DE ITEMS (Repuestos y Mano de Obra)
+// FUNCIONES DE ITEMS
 export const getOrderItems = async (orderId) => {
-  const { data } = await supabase.from('order_items').select('*').eq('order_id', orderId)
+  const { data, error } = await supabase
+    .from('order_items')
+    .select('*')
+    .eq('order_id', orderId)
+    
+  if (error) console.error(error)
   return data || []
 }
 
