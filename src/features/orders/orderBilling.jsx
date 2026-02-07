@@ -36,109 +36,124 @@ export default function OrderBilling({ order, onClose }) {
 
   const totalOrden = items.reduce((acc, item) => acc + (item.unit_price * item.quantity), 0)
 
-// --- LÓGICA DE IMPRESIÓN "BLOB" (COMPATIBLE CON CELULARES 100%) ---
+// --- LÓGICA DE IMPRESIÓN (VERSION FINAL MÓVIL) ---
 const handlePrint = () => {
   const client = order.vehicles?.clients || {}
   const clientName = (client.name && client.lastname) 
       ? `${client.name} ${client.lastname}` 
       : (client.full_name || 'Cliente Mostrador')
 
-  // 1. Armamos el HTML completo
-  const invoiceHTML = `
+  // 1. Abrimos una pestaña en blanco REAL
+  const printWindow = window.open('', '_blank');
+  
+  // Si el celular bloquea la popup, avisamos
+  if (!printWindow) {
+      alert("Por favor, permití las ventanas emergentes para ver la factura.");
+      return;
+  }
+
+  // 2. Escribimos el contenido directo (sin Blobs)
+  printWindow.document.write(`
     <!DOCTYPE html>
     <html lang="es">
       <head>
         <meta charset="UTF-8">
         <title>Orden_${order.id}</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
           
           body { 
               font-family: 'Roboto', sans-serif; 
-              padding: 20px; 
+              padding: 15px; 
               color: #334155; 
               margin: 0; 
-              background: #f8fafc; /* Fondo grisecito para que resalte la hoja */
+              background: #f1f5f9;
           }
           
-          /* Simulación de Hoja A4 */
+          /* Hoja simulada */
           .page {
               background: white;
               max-width: 800px;
               margin: 0 auto;
               padding: 20px;
-              box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
               border-radius: 8px;
+              box-shadow: 0 2px 5px rgba(0,0,0,0.05);
           }
 
           /* Header */
           .header-container { display: flex; flex-direction: column; gap: 10px; border-bottom: 4px solid ${TALLER_INFO.logo_color}; padding-bottom: 15px; margin-bottom: 20px; }
           @media (min-width: 600px) { .header-container { flex-direction: row; justify-content: space-between; align-items: flex-end; } }
           
-          .company-info h1 { font-size: 22px; text-transform: uppercase; font-weight: 900; margin: 0; line-height: 1; }
+          .company-info h1 { font-size: 24px; text-transform: uppercase; font-weight: 900; margin: 0; line-height: 1; }
           .company-info h1 span { color: ${TALLER_INFO.logo_color}; }
-          .company-info p { font-size: 11px; color: #64748b; margin: 4px 0; }
+          .company-info p { font-size: 12px; color: #64748b; margin: 4px 0; }
           
           .invoice-tag { background: ${TALLER_INFO.logo_color}; color: white; padding: 4px 10px; font-weight: bold; text-transform: uppercase; font-size: 11px; border-radius: 4px; display: inline-block; }
           
-          /* Botón Flotante para Celular */
-          .print-btn-container {
-              text-align: center;
-              margin-bottom: 20px;
+          /* Botón Flotante para Celular (Sticky al fondo) */
+          .print-bar {
+              position: fixed;
+              bottom: 20px;
+              left: 50%;
+              transform: translateX(-50%);
+              z-index: 999;
+              width: 90%;
+              max-width: 400px;
           }
           .print-btn {
+              width: 100%;
               background: #2563eb;
               color: white;
               border: none;
-              padding: 12px 25px;
-              border-radius: 50px;
-              font-size: 14px;
+              padding: 15px;
+              border-radius: 12px;
+              font-size: 16px;
               font-weight: bold;
               cursor: pointer;
-              box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
-              display: inline-flex;
+              box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+              display: flex;
               align-items: center;
-              gap: 8px;
-              text-decoration: none;
+              justify-content: center;
+              gap: 10px;
           }
           
-          /* Ocultar el botón y fondo gris al imprimir (para que salga tinta blanca) */
+          /* Ocultar elementos de interfaz al imprimir */
           @media print { 
               body { background: white; padding: 0; }
-              .page { box-shadow: none; margin: 0; padding: 0; }
-              .print-btn-container { display: none; }
+              .page { box-shadow: none; margin: 0; padding: 0; width: 100%; max-width: none; }
+              .print-bar { display: none !important; } /* Oculta el botón azul */
           }
 
           /* Cajas Cliente/Vehículo */
           .client-section { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
           @media (min-width: 600px) { .client-section { flex-direction: row; gap: 20px; } }
 
-          .box { flex: 1; background: #f8fafc; padding: 12px; border-radius: 8px; border-left: 4px solid #cbd5e1; }
+          .box { flex: 1; background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #cbd5e1; }
           .box.highlight { border-left-color: ${TALLER_INFO.logo_color}; background: #fff7ed; }
           
-          .box h3 { margin: 0 0 5px; font-size: 10px; text-transform: uppercase; color: #94a3b8; font-weight: 800; }
-          .box p.main { margin: 0 0 5px; font-size: 14px; font-weight: 700; color: #1e293b; text-transform: capitalize; }
+          .box h3 { margin: 0 0 5px; font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 800; }
+          .box p.main { margin: 0 0 5px; font-size: 16px; font-weight: 700; color: #1e293b; text-transform: capitalize; }
           
-          .data-item { font-size: 11px; color: #475569; display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding: 2px 0; }
+          .data-item { font-size: 13px; color: #475569; display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding: 4px 0; }
           
           /* Tabla */
           table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
           thead { background-color: #1e293b; color: white; }
-          th { text-align: left; padding: 8px; font-size: 10px; text-transform: uppercase; }
-          td { padding: 8px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+          th { text-align: left; padding: 10px; font-size: 11px; text-transform: uppercase; }
+          td { padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
           .text-right { text-align: right; }
           .text-center { text-align: center; }
           
-          .total-row { font-size: 18px; font-weight: 900; color: #0f172a; text-align: right; padding-top: 10px; border-top: 2px solid ${TALLER_INFO.logo_color}; }
-          .footer { margin-top: 40px; text-align: center; font-size: 10px; color: #94a3b8; text-transform: uppercase; }
+          .total-row { font-size: 20px; font-weight: 900; color: #0f172a; text-align: right; padding-top: 15px; border-top: 2px solid ${TALLER_INFO.logo_color}; }
+          .footer { margin-top: 50px; text-align: center; font-size: 11px; color: #94a3b8; text-transform: uppercase; padding-bottom: 80px; } /* Padding extra para que el botón no tape */
         </style>
       </head>
       <body>
         
-        <div class="print-btn-container">
+        <div class="print-bar">
           <button onclick="window.print()" class="print-btn">
-             🖨️ IMPRIMIR / DESCARGAR PDF
+             🖨️ IMPRIMIR / PDF
           </button>
         </div>
 
@@ -150,7 +165,7 @@ const handlePrint = () => {
               </div>
               <div style="text-align: left; margin-top: 5px;">
               <div class="invoice-tag">Orden #${order.id}</div>
-              <div style="font-size: 11px; margin-top: 2px; color: #64748b;">${new Date().toLocaleDateString()}</div>
+              <div style="font-size: 12px; margin-top: 4px; color: #64748b;">${new Date().toLocaleDateString()}</div>
               </div>
           </div>
 
@@ -171,7 +186,7 @@ const handlePrint = () => {
               </div>
           </div>
 
-          <div style="background: #f1f5f9; padding: 10px; border-radius: 6px; font-size: 12px; color: #475569; margin-bottom: 20px; border: 1px solid #e2e8f0; font-style: italic;">
+          <div style="background: #e2e8f0; padding: 12px; border-radius: 6px; font-size: 13px; color: #475569; margin-bottom: 20px; font-style: italic;">
               <strong>SOLICITUD:</strong> ${order.description}
           </div>
 
@@ -204,16 +219,19 @@ const handlePrint = () => {
               Documento no válido como factura fiscal • Gracias por su confianza
           </div>
         </div>
+        
+        <script>
+          // Intentar abrir el diálogo automáticamente al cargar
+          setTimeout(function() {
+              window.print();
+          }, 1000);
+        </script>
       </body>
     </html>
-  `;
-
-  // 2. Crear un Blob (Archivo en memoria) y abrirlo
-  const blob = new Blob([invoiceHTML], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
+  `);
   
-  // Abrir en pestaña nueva (esto evita los bloqueos de iframe)
-  window.open(url, '_blank');
+  // 3. Cerramos el documento para que el navegador sepa que terminó de cargar (IMPORTANTE PARA CELU)
+  printWindow.document.close();
 }
 
   return (
