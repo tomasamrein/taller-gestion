@@ -13,7 +13,7 @@ export default function OrderBilling({ order, onClose }) {
   
   // Referencia para la "Factura Fantasma"
   const invoiceRef = useRef(null)
-
+  
   // --- TUS DATOS ---
   const TALLER_INFO = {
     nombre: "TALLER MECÁNICA",
@@ -124,7 +124,6 @@ export default function OrderBilling({ order, onClose }) {
 
         {/* BODY (LISTA DE ITEMS PARA EDITAR) */}
         <div className="p-6 flex-1 overflow-y-auto">
-          {/* ... LISTA DE ITEMS (Igual que antes) ... */}
           <div className="space-y-2 mb-6">
              {items.length === 0 ? <p className="text-gray-400 text-center py-4 italic">Sin items cargados.</p> : 
                 items.map(item => (
@@ -144,7 +143,6 @@ export default function OrderBilling({ order, onClose }) {
           </div>
 
           <form onSubmit={handleAdd} className="bg-orange-50 p-4 rounded-xl border border-orange-200">
-             {/* ... FORMULARIO (Igual que antes) ... */}
              <input className="w-full mb-2 p-2 rounded border text-sm" placeholder="Descripción" value={newItem.description} onChange={e => setNewItem({...newItem, description: e.target.value})} />
              <div className="flex gap-2">
                 <input className="w-full p-2 rounded border text-sm" type="number" placeholder="$ Precio" value={newItem.unit_price} onChange={e => setNewItem({...newItem, unit_price: e.target.value})} />
@@ -155,62 +153,70 @@ export default function OrderBilling({ order, onClose }) {
       </div>
 
       {/* ================================================================================== */}
-      {/* FACTURA FANTASMA (Hidden off-screen) - ESTO ES LO QUE SE IMPRIME EN EL PDF */}
+      {/* FACTURA FANTASMA (ESTILOS CORREGIDOS AQUÍ) */}
       {/* ================================================================================== */}
       <div style={{ position: 'absolute', top: 0, left: '-9999px', width: '210mm', minHeight: '297mm', background: 'white' }}>
-         <div ref={invoiceRef} className="p-10 text-slate-800 font-sans" style={{ width: '100%' }}>
+         <div ref={invoiceRef} className="p-12 text-slate-800 font-sans" style={{ width: '100%' }}>
             
             {/* CABECERA PDF */}
-            <div className="flex justify-between border-b-4 border-orange-500 pb-4 mb-6">
+            <div className="flex justify-between border-b-4 border-orange-500 pb-6 mb-8">
                 <div>
-                    <h1 className="text-3xl font-black uppercase">{TALLER_INFO.nombre}</h1>
-                    <p className="text-sm text-gray-500 mt-1">{TALLER_INFO.direccion}</p>
+                    <h1 className="text-4xl font-black uppercase tracking-tight">{TALLER_INFO.nombre}</h1>
+                    <p className="text-sm text-gray-500 mt-2 font-medium">{TALLER_INFO.direccion}</p>
                     <p className="text-sm text-gray-500">{TALLER_INFO.telefono}</p>
                 </div>
                 <div className="text-right">
-                    <div className="bg-orange-600 text-white px-3 py-1 font-bold rounded inline-block mb-1">PRESUPUESTO</div>
-                    <p className="text-sm font-bold text-gray-600">#{order.id}</p>
-                    <p className="text-xs text-gray-400">{new Date().toLocaleDateString()}</p>
+                    {/* CAMBIO 1: Más padding (py-2 px-6) para que respire el texto */}
+                    <div className="bg-orange-600 text-white px-6 py-2 font-bold rounded-lg inline-block mb-2 text-sm tracking-wide">
+                        PRESUPUESTO
+                    </div>
+                    <p className="text-lg font-bold text-gray-700">Orden #{order.id}</p>
+                    <p className="text-sm text-gray-400 font-medium">{new Date().toLocaleDateString()}</p>
                 </div>
             </div>
 
             {/* DATOS CLIENTE PDF */}
-            <div className="flex gap-8 mb-8">
-                <div className="flex-1 bg-gray-50 p-4 rounded border-l-4 border-orange-500">
-                    <h3 className="text-xs font-bold text-gray-400 uppercase mb-2">Cliente</h3>
-                    <p className="font-bold text-lg capitalize">
+            <div className="flex gap-10 mb-10">
+                <div className="flex-1 bg-gray-50 p-6 rounded-lg border-l-8 border-orange-500">
+                    <h3 className="text-xs font-bold text-gray-400 uppercase mb-3 tracking-wider">Cliente</h3>
+                    <p className="font-bold text-xl capitalize text-slate-900 mb-2">
                         {order.vehicles?.clients?.name} {order.vehicles?.clients?.lastname}
                         {!order.vehicles?.clients?.name && order.vehicles?.clients?.full_name}
                     </p>
-                    <p className="text-sm text-gray-600 mt-1">Tel: {order.vehicles?.clients?.phone || '-'}</p>
-                    <p className="text-sm text-gray-600">Email: {order.vehicles?.clients?.email || '-'}</p>
-                    <p className="text-sm text-gray-600">CUIT: {order.vehicles?.clients?.cuil || '-'}</p>
+                    <div className="space-y-1">
+                        <p className="text-sm text-gray-600"><strong>Tel:</strong> {order.vehicles?.clients?.phone || '-'}</p>
+                        <p className="text-sm text-gray-600"><strong>Email:</strong> {order.vehicles?.clients?.email || '-'}</p>
+                        <p className="text-sm text-gray-600"><strong>CUIT:</strong> {order.vehicles?.clients?.cuil || '-'}</p>
+                    </div>
                 </div>
-                <div className="flex-1 bg-gray-50 p-4 rounded border-l-4 border-gray-300">
-                    <h3 className="text-xs font-bold text-gray-400 uppercase mb-2">Vehículo</h3>
-                    <p className="font-bold text-lg">{order.vehicles?.brand} {order.vehicles?.model}</p>
-                    <p className="text-sm text-gray-600 mt-1">Patente: <strong>{order.vehicles?.patent || order.vehicles?.plate}</strong></p>
-                    <p className="text-sm text-gray-600">Año: {order.vehicles?.year || '-'}</p>
+                <div className="flex-1 bg-gray-50 p-6 rounded-lg border-l-8 border-gray-300">
+                    <h3 className="text-xs font-bold text-gray-400 uppercase mb-3 tracking-wider">Vehículo</h3>
+                    <p className="font-bold text-xl text-slate-900 mb-2">{order.vehicles?.brand} {order.vehicles?.model}</p>
+                    <div className="space-y-1">
+                        <p className="text-sm text-gray-600">Patente: <strong>{order.vehicles?.patent || order.vehicles?.plate}</strong></p>
+                        <p className="text-sm text-gray-600">Año: {order.vehicles?.year || '-'}</p>
+                    </div>
                 </div>
             </div>
 
             {/* TABLA PDF */}
-            <table className="w-full mb-8">
-                <thead className="bg-slate-900 text-white text-xs uppercase">
+            <table className="w-full mb-10">
+                <thead className="bg-slate-900 text-white text-xs uppercase tracking-wider">
                     <tr>
-                        <th className="py-2 px-4 text-left">Descripción</th>
-                        <th className="py-2 px-4 text-center">Cant.</th>
-                        <th className="py-2 px-4 text-right">Precio</th>
-                        <th className="py-2 px-4 text-right">Total</th>
+                        {/* CAMBIO 2: Padding py-4 para que la barra negra sea más alta */}
+                        <th className="py-4 px-6 text-left">Descripción</th>
+                        <th className="py-4 px-6 text-center">Cant.</th>
+                        <th className="py-4 px-6 text-right">Precio Unit.</th>
+                        <th className="py-4 px-6 text-right">Total</th>
                     </tr>
                 </thead>
-                <tbody className="text-sm">
+                <tbody className="text-sm text-slate-700">
                     {items.map((item, idx) => (
                         <tr key={idx} className="border-b border-gray-100">
-                            <td className="py-3 px-4">{item.description}</td>
-                            <td className="py-3 px-4 text-center">{item.quantity}</td>
-                            <td className="py-3 px-4 text-right">${Number(item.unit_price).toLocaleString()}</td>
-                            <td className="py-3 px-4 text-right font-bold">${(item.unit_price * item.quantity).toLocaleString()}</td>
+                            <td className="py-4 px-6 font-medium">{item.description}</td>
+                            <td className="py-4 px-6 text-center">{item.quantity}</td>
+                            <td className="py-4 px-6 text-right">${Number(item.unit_price).toLocaleString()}</td>
+                            <td className="py-4 px-6 text-right font-bold text-slate-900">${(item.unit_price * item.quantity).toLocaleString()}</td>
                         </tr>
                     ))}
                 </tbody>
@@ -218,20 +224,22 @@ export default function OrderBilling({ order, onClose }) {
 
             {/* TOTALES PDF */}
             <div className="flex justify-end">
-                <div className="w-64">
-                    <div className="flex justify-between py-2 border-b border-gray-200 text-gray-500">
+                <div className="w-72">
+                    <div className="flex justify-between py-3 border-b border-gray-200 text-gray-500 font-medium">
                         <span>Subtotal</span>
                         <span>${totalOrden.toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between py-3 text-2xl font-black text-slate-900">
-                        <span>TOTAL</span>
+                    <div className="flex justify-between py-4 text-3xl font-black text-slate-900 items-end">
+                        <span className="text-lg font-bold text-gray-400 mb-1">TOTAL</span>
                         <span>${totalOrden.toLocaleString()}</span>
                     </div>
+                    <div className="h-1 bg-orange-500 mt-2 w-full"></div>
                 </div>
             </div>
 
-            <div className="mt-12 text-center text-xs text-gray-400">
-                Documento no válido como factura fiscal.
+            <div className="mt-16 text-center">
+                <p className="text-xs text-gray-400 font-medium uppercase tracking-widest mb-2">Gracias por confiar en {TALLER_INFO.nombre}</p>
+                <p className="text-[10px] text-gray-300">Documento no válido como factura fiscal.</p>
             </div>
          </div>
       </div>
