@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getActiveOrders, updateOrderStatus } from '../../services/orderService'
 import OrderBilling from './orderBilling'
-import { Wrench, Calendar, MessageCircle, ArrowRight, Car, Lock, FileText } from 'lucide-react'
+import ChecklistManager from '../checklist/checklistManager' // <--- IMPORTANTE
+import { Wrench, Calendar, MessageCircle, ArrowRight, Car, Lock, FileText, ClipboardList } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function WorkshopBoard({ userRole }) {
   const [orders, setOrders] = useState([])
-  const [selectedOrder, setSelectedOrder] = useState(null)
+  const [selectedOrder, setSelectedOrder] = useState(null) // Para Facturación
+  const [checklistOrder, setChecklistOrder] = useState(null) // Para Chequeo
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { loadOrders() }, [])
@@ -20,26 +22,22 @@ export default function WorkshopBoard({ userRole }) {
   }
 
   const handleStatusChange = async (id, newStatus) => {
-    console.log(`Cambiando estado orden ${id} a ${newStatus} con rol: ${userRole}`) // Debug
-
     // Si es EMPLEADO intentando FINALIZAR
     if (newStatus === 'finalizado' && userRole !== 'admin') {
         try {
             await updateOrderStatus(id, 'revision')
             toast('Enviado a revisión del Admin 👮‍♂️', { icon: '🔒' })
-            loadOrders() // Recargar para ver el cambio a violeta
+            loadOrders() 
         } catch (error) {
-            console.error(error)
             toast.error('Error al solicitar revisión')
         }
     } else {
-        // Flujo normal (Admin o cambios menores)
+        // Flujo normal
         try {
             await updateOrderStatus(id, newStatus)
             if(newStatus === 'finalizado') toast.success('Orden Finalizada y Cobrada 💰')
             loadOrders()
         } catch (error) {
-            console.error(error)
             toast.error('Error al cambiar estado')
         }
     }
@@ -111,9 +109,9 @@ export default function WorkshopBoard({ userRole }) {
                 </div>
                 
                 <div className="flex items-center gap-2 mt-3 text-sm text-gray-600">
-                   <span className="font-medium text-orange-700 bg-orange-100 px-2 rounded-full text-xs py-0.5">
-                     {order.vehicles?.clients?.full_name}
-                   </span>
+                    <span className="font-medium text-orange-700 bg-orange-100 px-2 rounded-full text-xs py-0.5">
+                      {order.vehicles?.clients?.full_name}
+                    </span>
                 </div>
               </div>
 
@@ -136,36 +134,42 @@ export default function WorkshopBoard({ userRole }) {
                 ) : (
                     <>
                         <div className="flex gap-2">
-                        <button 
-                            onClick={() => setSelectedOrder(order)}
-                            className="bg-white text-gray-700 px-3 py-2 rounded-lg font-bold hover:bg-orange-50 hover:text-orange-600 border border-gray-200 hover:border-orange-200 transition shadow-sm"
-                            title="Cargar Costos"
-                        >
-                            💲
-                        </button>
-
-                        {order.status === 'pendiente' && (
+                            {/* BOTÓN 1: COSTOS */}
                             <button 
-                            onClick={() => handleStatusChange(order.id, 'en_proceso')} 
-                            className="flex-1 bg-slate-700 text-white text-sm py-2 rounded-lg font-bold hover:bg-slate-800 transition shadow-sm"
+                                onClick={() => setSelectedOrder(order)}
+                                className="bg-white text-gray-700 px-3 py-2 rounded-lg font-bold hover:bg-orange-50 hover:text-orange-600 border border-gray-200 hover:border-orange-200 transition shadow-sm"
+                                title="Cargar Costos"
                             >
-                            ⚙️ Empezar
+                                💲
                             </button>
-                        )}
 
-                        {/* BOTÓN DE CIERRE / SOLICITUD */}
-                        {order.status !== 'finalizado' && order.status !== 'pendiente' && (
+                            {/* BOTÓN 2: CHEQUEO GENERAL (NUEVO) */}
                             <button 
-                            onClick={() => handleStatusChange(order.id, 'finalizado')} 
-                            className={`flex-1 text-white text-sm py-2 rounded-lg font-bold transition shadow-sm ${
-                                userRole === 'admin' 
-                                    ? 'bg-green-600 hover:bg-green-700'
-                                    : 'bg-slate-600 hover:bg-slate-700' 
-                            }`}
+                                onClick={() => setChecklistOrder(order)}
+                                className="bg-white text-gray-700 px-3 py-2 rounded-lg font-bold hover:bg-blue-50 hover:text-blue-600 border border-gray-200 hover:border-blue-200 transition shadow-sm"
+                                title="Chequeo General"
                             >
-                            {userRole === 'admin' ? '✅ Finalizar' : '📩 Solicitar Cierre'}
+                                📋
                             </button>
-                        )}
+
+                            {/* BOTÓN 3: ESTADO / FINALIZAR */}
+                            {order.status === 'pendiente' ? (
+                                <button 
+                                onClick={() => handleStatusChange(order.id, 'en_proceso')} 
+                                className="flex-1 bg-slate-700 text-white text-sm py-2 rounded-lg font-bold hover:bg-slate-800 transition shadow-sm"
+                                >
+                                ⚙️ Empezar
+                                </button>
+                            ) : order.status !== 'finalizado' && (
+                                <button 
+                                onClick={() => handleStatusChange(order.id, 'finalizado')} 
+                                className={`flex-1 text-white text-sm py-2 rounded-lg font-bold transition shadow-sm ${
+                                    userRole === 'admin' ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-600 hover:bg-slate-700' 
+                                }`}
+                                >
+                                {userRole === 'admin' ? '✅ Finalizar' : '📩 Solicitar Cierre'}
+                                </button>
+                            )}
                         </div>
                         
                         {order.status === 'finalizado' && (
@@ -184,10 +188,20 @@ export default function WorkshopBoard({ userRole }) {
         </div>
       )}
 
+      {/* MODAL FACTURACIÓN */}
       {selectedOrder && (
         <OrderBilling 
           order={selectedOrder} 
           onClose={() => setSelectedOrder(null)} 
+        />
+      )}
+
+      {/* MODAL CHEQUEO GENERAL (NUEVO) */}
+      {checklistOrder && (
+        <ChecklistManager 
+          orderId={checklistOrder.id} 
+          order={checklistOrder}
+          onClose={() => setChecklistOrder(null)} 
         />
       )}
     </div>

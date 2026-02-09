@@ -91,3 +91,13 @@ export const deleteOrderItem = async (id) => {
     const { error } = await supabase.from('order_items').delete().eq('id', id)
     if (error) throw error
 }
+
+// Actualizar un item (precio, descripción o tipo)
+export const updateOrderItem = async (id, updates) => {
+  const { error } = await supabase
+    .from('order_items')
+    .update(updates)
+    .eq('id', id)
+  
+  if (error) throw error
+}

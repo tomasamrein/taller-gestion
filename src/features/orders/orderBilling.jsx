@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
-import { getOrderItems, addOrderItem } from '../../services/orderService'
-import { Trash, Plus, Share2, Download, X, DollarSign, MessageCircle } from 'lucide-react'
+import { getOrderItems, addOrderItem, updateOrderItem, deleteOrderItem } from '../../services/orderService' 
+import { Trash2, Plus, Share2, Download, X, DollarSign, MessageCircle, Edit2, Check, Wrench, Package } from 'lucide-react'
 import toast from 'react-hot-toast'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
@@ -11,13 +11,20 @@ export default function OrderBilling({ order, onClose }) {
   const [loading, setLoading] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   
+  // Estado para Edición
+  const [editingId, setEditingId] = useState(null)
+  const [editValues, setEditValues] = useState({})
+
   const invoiceRef = useRef(null)
   
+  // --- DATOS DEL TALLER ACTUALIZADOS ---
   const TALLER_INFO = {
-    nombre: "TALLER MECÁNICA",
-    direccion: "Av. Completar 0000, Santa Fe",
-    telefono: "342-155-0000",
-    email: "tallermecanica@email.com",
+    nombre: "SERVICIO MECÁNICO Y AUXILIO", // Nombre actualizado
+    direccion: "Chaco 5785, Santa Fe",     // Dirección actualizada
+    telefono: "342-530-3133",              // Teléfono actualizado
+    email: "emilianosalomon@email.com",    // Email placeholder (ajustar si tienes el real)
+    cuit: "20-39456427-4",                 // CUIT actualizado
+    razon_social: "Emiliano Salomón (Monotributista)", // Razón social agregada para uso interno si se requiere
     logo_color: "#ea580c"
   }
 
@@ -25,7 +32,9 @@ export default function OrderBilling({ order, onClose }) {
 
   const loadItems = async () => {
     const data = await getOrderItems(order.id)
-    setItems(data)
+    // Ordenamos: Primero Mano de Obra, despues Repuestos (Opcional, queda prolijo)
+    const sorted = data.sort((a, b) => a.item_type.localeCompare(b.item_type))
+    setItems(sorted)
   }
 
   const handleAdd = async (e) => {
@@ -38,9 +47,36 @@ export default function OrderBilling({ order, onClose }) {
     setLoading(false)
   }
 
+  const handleDelete = async (id) => {
+    if(!window.confirm('¿Borrar item?')) return
+    await deleteOrderItem(id)
+    loadItems()
+  }
+
+  // --- LÓGICA DE EDICIÓN ---
+  const startEdit = (item) => {
+    setEditingId(item.id)
+    setEditValues(item)
+  }
+
+  const saveEdit = async () => {
+    try {
+        await updateOrderItem(editingId, {
+            description: editValues.description,
+            unit_price: editValues.unit_price,
+            item_type: editValues.item_type
+        })
+        setEditingId(null)
+        loadItems()
+        toast.success('Actualizado')
+    } catch (e) {
+        toast.error('Error al editar')
+    }
+  }
+
   const totalOrden = items.reduce((acc, item) => acc + (item.unit_price * item.quantity), 0)
 
-  // --- GENERACIÓN DE PDF ---
+  // ... (FUNCIONES DE PDF Y WHATSAPP) ...
   const generatePDFBlob = async () => {
     if (!invoiceRef.current) return null
     const canvas = await html2canvas(invoiceRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' })
@@ -52,23 +88,17 @@ export default function OrderBilling({ order, onClose }) {
     return pdf
   }
 
-  // --- OPCIÓN 1: COMPARTIR PDF (NATIVO MÓVIL) ---
   const handleShareWhatsApp = async () => {
     setIsGenerating(true)
     const toastId = toast.loading('Generando PDF...')
-    
     try {
       const pdf = await generatePDFBlob()
       const blob = pdf.output('blob')
-      
-      // Nombre del archivo personalizado con el apellido del cliente
       const clientName = order.vehicles?.clients?.lastname || 'Cliente'
       const fileName = `Presupuesto_${clientName}_${order.id}.pdf`
-      
       const file = new File([blob], fileName, { type: 'application/pdf' })
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        // Esto abre el menú nativo del celular (Emi elige WhatsApp y el contacto)
         await navigator.share({
           files: [file],
           title: `Presupuesto Taller - Orden #${order.id}`,
@@ -76,9 +106,8 @@ export default function OrderBilling({ order, onClose }) {
         })
         toast.success('¡Listo! Elegí WhatsApp', { id: toastId })
       } else {
-        // Si está en PC y no puede compartir, se lo descargamos
         pdf.save(fileName)
-        toast.success('Descargado (Tu PC no soporta envío directo)', { id: toastId })
+        toast.success('Descargado', { id: toastId })
       }
     } catch (e) {
       console.error(e)
@@ -88,7 +117,6 @@ export default function OrderBilling({ order, onClose }) {
     }
   }
 
-  // --- OPCIÓN 2: DESCARGAR (PARA PC) ---
   const handleDownload = async () => {
     setIsGenerating(true)
     try {
@@ -103,16 +131,12 @@ export default function OrderBilling({ order, onClose }) {
     }
   }
 
-  // --- OPCIÓN 3: ABRIR CHAT (SOLO TEXTO) ---
   const handleOpenChat = () => {
       const phone = order.vehicles?.clients?.phone
       if (!phone) return toast.error('El cliente no tiene teléfono')
-      
-      // Limpiamos el número para WhatsApp
       let num = phone.replace(/\D/g, '')
       if (num.startsWith('0')) num = num.substring(1)
       if (!num.startsWith('54')) num = '549' + num
-
       const text = `Hola ${order.vehicles?.clients?.name || ''}, te escribo por el presupuesto del ${order.vehicles?.model}.`
       window.open(`https://wa.me/${num}?text=${encodeURIComponent(text)}`, '_blank')
   }
@@ -121,96 +145,154 @@ export default function OrderBilling({ order, onClose }) {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
         
-        {/* HEADER MODAL CON BOTONERA POWER */}
-        <div className="bg-slate-900 text-white p-3 flex flex-col gap-3 border-b-4 border-orange-500">
+        {/* HEADER */}
+        <div className="bg-slate-900 text-white p-3 flex flex-col gap-3 border-b-4 border-orange-500 shrink-0">
           <div className="flex justify-between items-start">
               <div>
                 <h2 className="text-lg font-bold flex items-center gap-2">
-                    <DollarSign className="text-orange-500" size={20} /> Costos
+                    <DollarSign className="text-orange-500" size={20} /> Costos y Presupuesto
                 </h2>
                 <p className="text-xs text-gray-400">Orden #{order.id}</p>
               </div>
               <button onClick={onClose} className="text-gray-400 hover:text-white px-2 rounded"><X size={24}/></button>
           </div>
 
-          {/* BOTONERA DE ACCIONES */}
+          {/* BOTONERA ACCIONES */}
           <div className="flex gap-2">
-            
-            {/* 1. ENVIAR PDF (La estrella) */}
-            <button 
-              onClick={handleShareWhatsApp} 
-              disabled={isGenerating}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition shadow disabled:opacity-50"
-            >
+            <button onClick={handleShareWhatsApp} disabled={isGenerating} className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition shadow disabled:opacity-50">
               {isGenerating ? '...' : <><Share2 size={16} /> Enviar PDF</>}
             </button>
-
-            {/* 2. SOLO CHAT */}
-            <button 
-              onClick={handleOpenChat}
-              className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition"
-              title="Abrir Chat de WhatsApp"
-            >
+            <button onClick={handleOpenChat} className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition">
               <MessageCircle size={16} />
             </button>
-
-            {/* 3. DESCARGAR */}
-            <button 
-              onClick={handleDownload}
-              className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition"
-              title="Descargar en el dispositivo"
-            >
+            <button onClick={handleDownload} className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition">
               <Download size={16} />
             </button>
           </div>
         </div>
 
-        {/* BODY */}
-        <div className="p-6 flex-1 overflow-y-auto">
-          <div className="space-y-2 mb-6">
-             {items.length === 0 ? <p className="text-gray-400 text-center py-4 italic">Sin items cargados.</p> : 
+        {/* LISTA DE ITEMS (SCROLLABLE) */}
+        <div className="p-4 flex-1 overflow-y-auto bg-gray-50">
+          <div className="space-y-3 mb-6">
+             {items.length === 0 ? <p className="text-gray-400 text-center py-8 italic border-2 border-dashed border-gray-200 rounded-lg">No hay costos cargados.</p> : 
                 items.map(item => (
-                <div key={item.id} className="flex justify-between items-center border-b border-gray-100 pb-2">
-                  <div>
-                    <p className="font-bold text-gray-800 text-sm">{item.description}</p>
-                    <p className="text-[10px] text-gray-400 uppercase">{item.item_type} (x{item.quantity})</p>
-                  </div>
-                  <span className="font-bold text-gray-700">${(item.unit_price * item.quantity).toLocaleString()}</span>
+                <div key={item.id} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm flex flex-col gap-2">
+                  
+                  {editingId === item.id ? (
+                      // --- MODO EDICIÓN ---
+                      <div className="flex flex-col gap-2 animate-fade-in">
+                          <div className="flex gap-2">
+                              <select 
+                                value={editValues.item_type} 
+                                onChange={e => setEditValues({...editValues, item_type: e.target.value})}
+                                className="text-xs border p-1 rounded bg-gray-50"
+                              >
+                                  <option value="repuesto">Repuesto</option>
+                                  <option value="mano_obra">Mano de Obra</option>
+                              </select>
+                              <input 
+                                value={editValues.description} 
+                                onChange={e => setEditValues({...editValues, description: e.target.value})}
+                                className="flex-1 border p-1 rounded text-sm"
+                              />
+                          </div>
+                          <div className="flex gap-2">
+                              <input 
+                                type="number"
+                                value={editValues.unit_price} 
+                                onChange={e => setEditValues({...editValues, unit_price: e.target.value})}
+                                className="flex-1 border p-1 rounded text-sm font-bold"
+                              />
+                              <button onClick={saveEdit} className="bg-green-100 text-green-700 p-1.5 rounded hover:bg-green-200"><Check size={16}/></button>
+                              <button onClick={() => setEditingId(null)} className="bg-gray-100 text-gray-500 p-1.5 rounded hover:bg-gray-200"><X size={16}/></button>
+                          </div>
+                      </div>
+                  ) : (
+                      // --- MODO VISUALIZACIÓN ---
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-start gap-3">
+                            <div className={`p-2 rounded-full ${item.item_type === 'mano_obra' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>
+                                {item.item_type === 'mano_obra' ? <Wrench size={16}/> : <Package size={16}/>}
+                            </div>
+                            <div>
+                                <p className="font-bold text-gray-800 text-sm leading-tight">{item.description}</p>
+                                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+                                    {item.item_type.replace('_', ' ')}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                            <span className="font-bold text-gray-800 font-mono text-lg">${(item.unit_price * item.quantity).toLocaleString()}</span>
+                            <div className="flex gap-1">
+                                <button onClick={() => startEdit(item)} className="text-gray-400 hover:text-blue-500 p-1"><Edit2 size={14}/></button>
+                                <button onClick={() => handleDelete(item.id)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 size={14}/></button>
+                            </div>
+                        </div>
+                      </div>
+                  )}
                 </div>
              ))}
           </div>
+        </div>
 
-          <div className="flex justify-between items-center bg-slate-100 p-4 rounded-xl mb-6 border border-slate-200">
-            <span className="text-slate-600 font-bold uppercase text-sm">Total</span>
-            <span className="text-2xl font-bold text-green-600">$ {totalOrden.toLocaleString()}</span>
-          </div>
+        {/* FOOTER FIJO (TOTAL + AGREGAR) */}
+        <div className="bg-white border-t p-4 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-10">
+            <div className="flex justify-between items-center mb-4 px-2">
+                <span className="text-slate-500 font-bold uppercase text-xs tracking-wider">Total Presupuestado</span>
+                <span className="text-3xl font-black text-slate-900 tracking-tight">$ {totalOrden.toLocaleString()}</span>
+            </div>
 
-          <form onSubmit={handleAdd} className="bg-orange-50 p-4 rounded-xl border border-orange-200">
-             <input className="w-full mb-2 p-2 rounded border text-sm" placeholder="Descripción" value={newItem.description} onChange={e => setNewItem({...newItem, description: e.target.value})} />
-             <div className="flex gap-2">
-                <input className="w-full p-2 rounded border text-sm" type="number" placeholder="$ Precio" value={newItem.unit_price} onChange={e => setNewItem({...newItem, unit_price: e.target.value})} />
-                <button disabled={loading} className="bg-orange-600 text-white px-4 rounded font-bold text-sm"><Plus/></button>
-             </div>
-          </form>
+            <form onSubmit={handleAdd} className="bg-gray-50 p-3 rounded-xl border border-gray-200">
+                <div className="flex gap-2 mb-2">
+                    <select 
+                        className="bg-white border border-gray-300 text-gray-700 text-xs rounded-lg p-2 outline-none focus:ring-2 focus:ring-orange-500 font-bold uppercase"
+                        value={newItem.item_type}
+                        onChange={e => setNewItem({...newItem, item_type: e.target.value})}
+                    >
+                        <option value="repuesto">Repuesto</option>
+                        <option value="mano_obra">Mano Obra</option>
+                    </select>
+                    <input 
+                        className="flex-1 bg-white border border-gray-300 p-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-500" 
+                        placeholder="Descripción del item..." 
+                        value={newItem.description} 
+                        onChange={e => setNewItem({...newItem, description: e.target.value})} 
+                    />
+                </div>
+                <div className="flex gap-2">
+                    <div className="relative flex-1">
+                        <span className="absolute left-3 top-2 text-gray-400 font-bold">$</span>
+                        <input 
+                            className="w-full bg-white border border-gray-300 pl-6 p-2 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-500 font-mono font-bold" 
+                            type="number" 
+                            placeholder="0.00" 
+                            value={newItem.unit_price} 
+                            onChange={e => setNewItem({...newItem, unit_price: e.target.value})} 
+                        />
+                    </div>
+                    <button disabled={loading} className="bg-orange-600 hover:bg-orange-700 text-white px-6 rounded-lg font-bold text-sm shadow-md transition active:scale-95 flex items-center gap-2">
+                        <Plus size={18}/> Agregar
+                    </button>
+                </div>
+            </form>
         </div>
       </div>
 
-      {/* ================================================================================== */}
-      {/* FACTURA FANTASMA (Tus estilos corregidos) */}
-      {/* ================================================================================== */}
+      {/* --- FACTURA FANTASMA (PARA EL PDF) --- */}
       <div style={{ position: 'absolute', top: 0, left: '-9999px', width: '210mm', minHeight: '297mm', background: 'white' }}>
          <div ref={invoiceRef} className="p-12 text-slate-800 font-sans" style={{ width: '100%' }}>
             
+            {/* CABECERA CON DATOS ACTUALIZADOS DEL CLIENTE */}
             <div className="flex justify-between border-b-4 border-orange-500 pb-6 mb-8">
                 <div>
-                    <h1 className="text-4xl font-black uppercase tracking-tight">{TALLER_INFO.nombre}</h1>
-                    <p className="text-sm text-gray-500 mt-2 font-medium">{TALLER_INFO.direccion}</p>
-                    <p className="text-sm text-gray-500">{TALLER_INFO.telefono}</p>
+                    <h1 className="text-3xl font-black uppercase tracking-tight">{TALLER_INFO.nombre}</h1>
+                    <p className="text-sm text-gray-500 mt-2 font-medium">{TALLER_INFO.razon_social}</p>
+                    <p className="text-sm text-gray-500">Dirección: {TALLER_INFO.direccion}</p>
+                    <p className="text-sm text-gray-500">Teléfono: {TALLER_INFO.telefono}</p>
+                    <p className="text-sm text-gray-500">CUIT: {TALLER_INFO.cuit}</p>
                 </div>
                 <div className="text-right">
-                    <div className="bg-orange-600 text-white px-6 py-2 font-bold rounded-lg inline-block mb-2 text-sm tracking-wide">
-                        PRESUPUESTO
-                    </div>
+                    <div className="bg-orange-600 text-white px-6 py-2 font-bold rounded-lg inline-block mb-2 text-sm tracking-wide">PRESUPUESTO</div>
                     <p className="text-lg font-bold text-gray-700">Orden #{order.id}</p>
                     <p className="text-sm text-gray-400 font-medium">{new Date().toLocaleDateString()}</p>
                 </div>
@@ -219,32 +301,27 @@ export default function OrderBilling({ order, onClose }) {
             <div className="flex gap-10 mb-10">
                 <div className="flex-1 bg-gray-50 p-6 rounded-lg border-l-8 border-orange-500">
                     <h3 className="text-xs font-bold text-gray-400 uppercase mb-3 tracking-wider">Cliente</h3>
-                    <p className="font-bold text-xl capitalize text-slate-900 mb-2">
-                        {order.vehicles?.clients?.name} {order.vehicles?.clients?.lastname}
-                        {!order.vehicles?.clients?.name && order.vehicles?.clients?.full_name}
-                    </p>
+                    <p className="font-bold text-xl capitalize text-slate-900 mb-2">{order.vehicles?.clients?.name || order.vehicles?.clients?.full_name} {order.vehicles?.clients?.lastname}</p>
                     <div className="space-y-1">
                         <p className="text-sm text-gray-600"><strong>Tel:</strong> {order.vehicles?.clients?.phone || '-'}</p>
                         <p className="text-sm text-gray-600"><strong>Email:</strong> {order.vehicles?.clients?.email || '-'}</p>
-                        <p className="text-sm text-gray-600"><strong>CUIT:</strong> {order.vehicles?.clients?.cuil || '-'}</p>
+                        <p className="text-sm text-gray-600"><strong>CUIT/CUIL:</strong> {order.vehicles?.clients?.cuil || '-'}</p>
                     </div>
                 </div>
                 <div className="flex-1 bg-gray-50 p-6 rounded-lg border-l-8 border-gray-300">
                     <h3 className="text-xs font-bold text-gray-400 uppercase mb-3 tracking-wider">Vehículo</h3>
                     <p className="font-bold text-xl text-slate-900 mb-2">{order.vehicles?.brand} {order.vehicles?.model}</p>
-                    <div className="space-y-1">
-                        <p className="text-sm text-gray-600">Patente: <strong>{order.vehicles?.patent || order.vehicles?.plate}</strong></p>
-                        <p className="text-sm text-gray-600">Año: {order.vehicles?.year || '-'}</p>
-                    </div>
+                    <p className="text-sm text-gray-600">Patente: <strong>{order.vehicles?.patent || order.vehicles?.plate}</strong></p>
                 </div>
             </div>
 
+            {/* TABLA MEJORADA EN EL PDF */}
             <table className="w-full mb-10">
                 <thead className="bg-slate-900 text-white text-xs uppercase tracking-wider">
                     <tr>
                         <th className="py-4 px-6 text-left">Descripción</th>
-                        <th className="py-4 px-6 text-center">Cant.</th>
-                        <th className="py-4 px-6 text-right">Precio Unit.</th>
+                        <th className="py-4 px-6 text-center">Tipo</th>
+                        <th className="py-4 px-6 text-right">Precio</th>
                         <th className="py-4 px-6 text-right">Total</th>
                     </tr>
                 </thead>
@@ -252,7 +329,7 @@ export default function OrderBilling({ order, onClose }) {
                     {items.map((item, idx) => (
                         <tr key={idx} className="border-b border-gray-100">
                             <td className="py-4 px-6 font-medium">{item.description}</td>
-                            <td className="py-4 px-6 text-center">{item.quantity}</td>
+                            <td className="py-4 px-6 text-center text-xs uppercase font-bold text-gray-400">{item.item_type.replace('_', ' ')}</td>
                             <td className="py-4 px-6 text-right">${Number(item.unit_price).toLocaleString()}</td>
                             <td className="py-4 px-6 text-right font-bold text-slate-900">${(item.unit_price * item.quantity).toLocaleString()}</td>
                         </tr>
@@ -262,22 +339,14 @@ export default function OrderBilling({ order, onClose }) {
 
             <div className="flex justify-end">
                 <div className="w-72">
-                    <div className="flex justify-between py-3 border-b border-gray-200 text-gray-500 font-medium">
-                        <span>Subtotal</span>
-                        <span>${totalOrden.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between py-4 text-3xl font-black text-slate-900 items-end">
+                    <div className="flex justify-between py-4 text-3xl font-black text-slate-900 items-end border-t-2 border-orange-500 pt-4">
                         <span className="text-lg font-bold text-gray-400 mb-1">TOTAL</span>
                         <span>${totalOrden.toLocaleString()}</span>
                     </div>
-                    <div className="h-1 bg-orange-500 mt-2 w-full"></div>
                 </div>
             </div>
-
-            <div className="mt-16 text-center">
-                <p className="text-xs text-gray-400 font-medium uppercase tracking-widest mb-2">Gracias por confiar en {TALLER_INFO.nombre}</p>
-                <p className="text-[10px] text-gray-300">Documento no válido como factura fiscal.</p>
-            </div>
+            
+            <div className="mt-16 text-center text-xs text-gray-400 uppercase">Documento no válido como factura fiscal.</div>
          </div>
       </div>
     </div>
