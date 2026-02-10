@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getActiveOrders, updateOrderStatus } from '../../services/orderService'
 import OrderBilling from './orderBilling'
-import ChecklistManager from '../checklist/checklistManager' // <--- IMPORTANTE
+import ChecklistManager from '../checklist/checklistManager' 
 import { Wrench, Calendar, MessageCircle, ArrowRight, Car, Lock, FileText, ClipboardList } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -64,6 +64,15 @@ export default function WorkshopBoard({ userRole }) {
     }
   }
 
+  // Función auxiliar para manejar clicks bloqueados
+  const handleRestrictedClick = (order, action) => {
+    if (order.status === 'pendiente') {
+        toast.error('🚫 Debés iniciar la orden primero')
+        return
+    }
+    action()
+  }
+
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto animate-fade-in">
       <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 mb-6 flex items-center gap-2">
@@ -90,7 +99,10 @@ export default function WorkshopBoard({ userRole }) {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-          {orders.map(order => (
+          {orders.map(order => {
+            const isPending = order.status === 'pendiente'
+            
+            return (
             <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col relative transition hover:shadow-md hover:border-orange-300 group">
               
               <div className="p-4 border-b bg-gray-50 group-hover:bg-orange-50 transition-colors">
@@ -134,19 +146,27 @@ export default function WorkshopBoard({ userRole }) {
                 ) : (
                     <>
                         <div className="flex gap-2">
-                            {/* BOTÓN 1: COSTOS */}
+                            {/* BOTÓN 1: COSTOS (BLOQUEADO SI ES PENDIENTE) */}
                             <button 
-                                onClick={() => setSelectedOrder(order)}
-                                className="bg-white text-gray-700 px-3 py-2 rounded-lg font-bold hover:bg-orange-50 hover:text-orange-600 border border-gray-200 hover:border-orange-200 transition shadow-sm"
+                                onClick={() => handleRestrictedClick(order, () => setSelectedOrder(order))}
+                                className={`px-3 py-2 rounded-lg font-bold border transition shadow-sm ${
+                                    isPending 
+                                    ? 'bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed' 
+                                    : 'bg-white text-gray-700 hover:bg-orange-50 hover:text-orange-600 border-gray-200 hover:border-orange-200'
+                                }`}
                                 title="Cargar Costos"
                             >
                                 💲
                             </button>
 
-                            {/* BOTÓN 2: CHEQUEO GENERAL (NUEVO) */}
+                            {/* BOTÓN 2: CHEQUEO GENERAL (BLOQUEADO SI ES PENDIENTE) */}
                             <button 
-                                onClick={() => setChecklistOrder(order)}
-                                className="bg-white text-gray-700 px-3 py-2 rounded-lg font-bold hover:bg-blue-50 hover:text-blue-600 border border-gray-200 hover:border-blue-200 transition shadow-sm"
+                                onClick={() => handleRestrictedClick(order, () => setChecklistOrder(order))}
+                                className={`px-3 py-2 rounded-lg font-bold border transition shadow-sm ${
+                                    isPending 
+                                    ? 'bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed' 
+                                    : 'bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600 border-gray-200 hover:border-blue-200'
+                                }`}
                                 title="Chequeo General"
                             >
                                 📋
@@ -156,7 +176,7 @@ export default function WorkshopBoard({ userRole }) {
                             {order.status === 'pendiente' ? (
                                 <button 
                                 onClick={() => handleStatusChange(order.id, 'en_proceso')} 
-                                className="flex-1 bg-slate-700 text-white text-sm py-2 rounded-lg font-bold hover:bg-slate-800 transition shadow-sm"
+                                className="flex-1 bg-slate-700 text-white text-sm py-2 rounded-lg font-bold hover:bg-slate-800 transition shadow-sm animate-pulse"
                                 >
                                 ⚙️ Empezar
                                 </button>
@@ -184,7 +204,7 @@ export default function WorkshopBoard({ userRole }) {
                 )}
               </div>
             </div>
-          ))}
+          )})}
         </div>
       )}
 
@@ -196,7 +216,7 @@ export default function WorkshopBoard({ userRole }) {
         />
       )}
 
-      {/* MODAL CHEQUEO GENERAL (NUEVO) */}
+      {/* MODAL CHEQUEO GENERAL */}
       {checklistOrder && (
         <ChecklistManager 
           orderId={checklistOrder.id} 
