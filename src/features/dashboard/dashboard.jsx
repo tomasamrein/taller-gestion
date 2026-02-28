@@ -12,20 +12,26 @@ export default function Dashboard() {
 
   const [rawData, setRawData] = useState({ orders: [], expenses: [] })
 
-// Función auxiliar a prueba de errores
-const fixDate = (dateString) => {
-  // Si no hay fecha, devolvemos la fecha de hoy para que no explote
-  if (!dateString) return new Date()
-  
-  // Si es un objeto Date real, lo devolvemos
-  if (dateString instanceof Date) return dateString
+  // --- FUNCIÓN FIXDATE MEJORADA ---
+  const fixDate = (dateString) => {
+    if (!dateString) return new Date()
+    if (dateString instanceof Date) return dateString
 
-  // Si tiene hora (T), la usamos
-  if (dateString.includes('T')) return new Date(dateString)
-  
-  // Si es fecha vieja (sin hora), le ponemos mediodía
-  return new Date(`${dateString}T12:00:00`)
-}
+    const str = String(dateString).trim()
+
+    // 1. Si viene SOLO la fecha de la base de datos ("YYYY-MM-DD" = 10 caracteres)
+    if (str.length <= 10) {
+        return new Date(`${str}T12:00:00`)
+    }
+
+    // 2. Si viene formato puro de Postgres con espacio ("2026-02-28 15:30:00")
+    if (str.includes(' ') && !str.includes('T')) {
+        return new Date(str.replace(' ', 'T'))
+    }
+
+    // 3. Si ya viene con formato ISO perfecto con la 'T'
+    return new Date(str)
+  }
 
   useEffect(() => { cargarDatosIniciales() }, [])
 
@@ -54,12 +60,11 @@ const fixDate = (dateString) => {
         const gastosMes = todosLosGastos.filter(g => esEsteMes(fixDate(g.date)) && g.status === 'approved')
 
         // --- LISTA DE MOVIMIENTOS (FEED) ---
-        // ACÁ ESTÁ EL CAMBIO: Usamos 'created_at' para la lista, así vemos la hora real de carga
         const ingresosLista = ordenesMes.map(o => ({
             id: `ing-${o.id}`,
             rawId: o.id,
-            // PRIORIDAD: created_at para que tenga la hora exacta
-            displayDate: o.created_at || o.delivery_date, 
+            // PRIORIDAD ARREGLADA: delivery_date (cobro) -> updated_at -> created_at
+            displayDate: o.delivery_date || o.updated_at || o.created_at, 
             description: `Servicio ${o.vehicles?.brand || ''} ${o.vehicles?.model || ''}`,
             amount: o.order_items?.reduce((sum, i) => sum + (Number(i.unit_price) * Number(i.quantity)), 0) || 0,
             type: 'ingreso'
@@ -68,7 +73,6 @@ const fixDate = (dateString) => {
         const gastosLista = gastosMes.map(g => ({
             id: `gas-${g.id}`,
             rawId: g.id,
-            // PRIORIDAD: created_at si existe, sino la fecha manual
             displayDate: g.created_at || g.date,
             description: g.description,
             amount: Number(g.amount),
@@ -79,7 +83,6 @@ const fixDate = (dateString) => {
         const mix = [...ingresosLista, ...gastosLista].sort((a, b) => {
             const dateA = new Date(a.displayDate).getTime()
             const dateB = new Date(b.displayDate).getTime()
-            // Ordenar por milisegundos (el más nuevo arriba)
             return dateB - dateA
         })
         setRecentActivity(mix)
@@ -267,9 +270,9 @@ const fixDate = (dateString) => {
                                 <td className="p-4">
                                     <p className="font-bold text-sm text-gray-800 group-hover:text-violet-700 transition">{mov.description}</p>
                                     <p className="text-xs uppercase font-bold text-gray-400 flex items-center gap-1">
-                                    {/* Usamos fixDate acá para proteger la fecha */}
                                     {fixDate(mov.displayDate).toLocaleDateString()}
                                     <span className="text-gray-300">•</span>
+                                    {/* Muestra la hora y los minutos exactos del cierre */}
                                     {fixDate(mov.displayDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}hs
                                 </p>
                                 </td>

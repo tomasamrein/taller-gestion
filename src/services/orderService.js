@@ -7,13 +7,12 @@ export const createOrder = async (order) => {
       description: order.description,
       status: 'pendiente' 
     }])
-    .select() // Agregué esto por si necesitas el ID de la orden recién creada
+    .select() 
   
   if (error) throw error
   return data
 }
 
-// --- ACÁ ESTABA EL PROBLEMA ---
 export const getActiveOrders = async () => {
   const { data, error } = await supabase
     .from('work_orders')
@@ -24,7 +23,6 @@ export const getActiveOrders = async () => {
         clients ( * ) 
       )
     `)
-    // NOTA: Al poner clients (*) le decimos que traiga email, cuil, nombre, apellido, TODO.
     .neq('status', 'finalizado')
     .order('updated_at', { ascending: false })
   
@@ -35,8 +33,9 @@ export const getActiveOrders = async () => {
   return data || []
 }
 
-export const getFinishedOrdersWithItems = async () => {
-  const { data, error } = await supabase
+// --- CAMBIO: Paginación Inteligente ---
+export const getFinishedOrdersWithItems = async (page = null, limit = 30) => {
+  let query = supabase
     .from('work_orders')
     .select(`
       *,
@@ -47,8 +46,17 @@ export const getFinishedOrdersWithItems = async () => {
       order_items ( * )
     `)
     .eq('status', 'finalizado')
-    .order('updated_at', { ascending: false }) // Cambié a updated_at por si delivery_date es null
+    .order('updated_at', { ascending: false }) 
 
+  // Si nos pasan número de página (desde el Tablero), limitamos los resultados.
+  // Si no nos pasan (desde el Dashboard), trae todo para armar los gráficos.
+  if (page !== null && page !== undefined) {
+      const from = page * limit;
+      const to = from + limit - 1;
+      query = query.range(from, to);
+  }
+
+  const { data, error } = await query;
   if (error) console.error(error)
   return data || []
 }
@@ -92,7 +100,6 @@ export const deleteOrderItem = async (id) => {
     if (error) throw error
 }
 
-// Actualizar un item (precio, descripción o tipo)
 export const updateOrderItem = async (id, updates) => {
   const { error } = await supabase
     .from('order_items')

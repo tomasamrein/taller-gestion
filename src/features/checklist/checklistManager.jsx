@@ -314,7 +314,7 @@ export default function ChecklistManager({ orderId, order, onClose }) {
                     <h1 className="text-3xl font-black uppercase tracking-tight text-slate-900 mb-1 leading-normal">{TALLER_INFO.nombre}</h1>
                     <p className="text-sm font-bold text-gray-700">{TALLER_INFO.razon_social}</p>
                     {/* CUIT AGREGADO AQUI */}
-                    <p className="text-sm text-gray-500">CUIL: {TALLER_INFO.cuit}</p>
+                    <p className="text-sm text-gray-500">CUIT: {TALLER_INFO.cuit}</p>
                     <p className="text-sm text-gray-500">{TALLER_INFO.direccion}</p>
                     <p className="text-sm text-gray-500">{TALLER_INFO.telefono}</p>
                 </div>
