@@ -1,17 +1,17 @@
-import { StrictMode } from 'react'
+import { StrictMode, Component } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 
-class ErrorBoundary extends React.Component {
+class ErrorBoundary extends Component {
   constructor(props) {
     super(props)
-    this.state = { hasError: false, error: null }
+    this.state = { hasError: false }
   }
 
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error }
+  static getDerivedStateFromError() {
+    return { hasError: true }
   }
 
   componentDidCatch(error, errorInfo) {
