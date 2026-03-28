@@ -6,7 +6,15 @@ export default function AuditLog() {
   const [logs, setLogs] = useState([])
 
   useEffect(() => { load() }, [])
-  const load = async () => { setLogs(await getAuditLogs()) }
+  
+  const load = async () => {
+    const { data, error } = await getAuditLogs()
+    if (error) {
+      console.error('Error cargando logs:', error)
+      return
+    }
+    setLogs(data || [])
+  }
 
   return (
     <div className="p-4 lg:p-6 max-w-6xl mx-auto animate-fade-in">

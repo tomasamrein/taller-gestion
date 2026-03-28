@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { supabase } from './lib/supabase'
 import Login from './features/auth/login'
@@ -20,30 +20,45 @@ function App() {
   const [userRole, setUserRole] = useState(null)
   const [userData, setUserData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [initError, setInitError] = useState(null)
 
   useEffect(() => {
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const metadata = session.user.user_metadata || {}
-        setIsAuthenticated(true)
-        setUserRole(metadata.role || 'empleado')
-        setUserData({
-          id: session.user.id,
-          email: session.user.email,
-          name: metadata.full_name || session.user.email.split('@')[0],
-          role: metadata.role || 'empleado',
-          taller_id: metadata.taller_id || null
-        })
-      } else {
+    let mounted = true
+
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (mounted && session?.user) {
+          const metadata = session.user.user_metadata || {}
+          setIsAuthenticated(true)
+          setUserRole(metadata.role || 'empleado')
+          setUserData({
+            id: session.user.id,
+            email: session.user.email,
+            name: metadata.full_name || session.user.email.split('@')[0],
+            role: metadata.role || 'empleado',
+            taller_id: metadata.taller_id || null
+          })
+        }
+      } catch (err) {
+        console.error('Error inicializando auth:', err)
+        if (mounted) setInitError(err.message)
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+
+    initializeAuth()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return
+      
+      if (event === 'SIGNED_OUT' || !session) {
         setIsAuthenticated(false)
         setUserRole(null)
         setUserData(null)
-      }
-      setLoading(false)
-    })
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
+      } else if (session?.user) {
         const metadata = session.user.user_metadata || {}
         setIsAuthenticated(true)
         setUserRole(metadata.role || 'empleado')
@@ -55,8 +70,12 @@ function App() {
           taller_id: metadata.taller_id || null
         })
       }
-      setLoading(false)
     })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   const handleLogin = (data, rememberMe) => {
@@ -70,12 +89,28 @@ function App() {
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    try {
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.error('Error en logout:', err)
+    }
     localStorage.removeItem('user_session')
     sessionStorage.removeItem('user_session')
     setIsAuthenticated(false)
     setUserRole(null)
     setUserData(null)
+  }
+
+  if (initError) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl p-8 max-w-md text-center">
+          <h1 className="text-xl font-bold text-red-600 mb-4">Error de Configuración</h1>
+          <p className="text-gray-600 mb-4">Verificá que las variables de entorno estén configuradas.</p>
+          <p className="text-sm text-gray-400 font-mono bg-gray-100 p-2 rounded">{initError}</p>
+        </div>
+      </div>
+    )
   }
 
   if (loading) {
@@ -87,7 +122,7 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
+    <>
       <Toaster position="bottom-center" toastOptions={{ duration: 3000, style: { background: '#333', color: '#fff' } }} />
       
       <Routes>
@@ -115,7 +150,7 @@ function App() {
           </Route>
         )}
       </Routes>
-    </BrowserRouter>
+    </>
   )
 }
 

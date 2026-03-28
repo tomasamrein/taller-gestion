@@ -11,7 +11,15 @@ export default function Agenda() {
   useEffect(() => { load() }, [])
 
   const load = async () => {
-    const { data } = await supabase.from('appointments').select('*').order('date', { ascending: true })
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('*')
+      .order('date', { ascending: true })
+    
+    if (error) {
+      toast.error('Error al cargar turnos')
+      return
+    }
     setAppointments(data || [])
   }
 
@@ -19,16 +27,18 @@ export default function Agenda() {
     e.preventDefault()
     if(!newApp.client_name || !newApp.date || !newApp.time) return toast.error('Faltan datos')
     
-    setLoading(true) // <--- 2. BLOQUEAMOS BOTÓN
+    setLoading(true)
     
     try {
         const fullDate = new Date(`${newApp.date}T${newApp.time}`)
 
-        await supabase.from('appointments').insert([{
+        const { error } = await supabase.from('appointments').insert([{
             client_name: newApp.client_name,
             date: fullDate.toISOString(),
             note: newApp.note
         }])
+        
+        if (error) throw new Error(error)
         
         toast.success('Turno agendado')
         setNewApp({ client_name: '', date: '', time: '', note: '' })
@@ -36,13 +46,17 @@ export default function Agenda() {
     } catch (error) {
         toast.error('Error al agendar')
     } finally {
-        setLoading(false) // <--- 3. DESBLOQUEAMOS AL FINAL
+        setLoading(false)
     }
   }
 
   const handleDelete = async (id) => {
     if(confirm('¿Borrar turno?')) {
-        await supabase.from('appointments').delete().eq('id', id)
+        const { error } = await supabase.from('appointments').delete().eq('id', id)
+        if (error) {
+          toast.error('Error al eliminar')
+          return
+        }
         toast.success('Turno eliminado')
         load()
     }

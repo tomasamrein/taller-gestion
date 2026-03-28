@@ -6,6 +6,7 @@ import { FileText, ChevronDown, ChevronUp, TrendingUp, TrendingDown, DollarSign 
 export default function BillingHistory() {
   const [history, setHistory] = useState([])
   const [expandedMonth, setExpandedMonth] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   // Función mágica para evitar que el UTC-3 nos robe un día
   const fixDate = (dateString) => {
@@ -19,12 +20,17 @@ export default function BillingHistory() {
   useEffect(() => { load() }, [])
 
   const load = async () => {
-    // 1. Traemos todo el historial
-    const orders = await getFinishedOrdersWithItems() || []
-    const expenses = await getExpenses() || []
+    setLoading(true)
+    try {
+      const [ordersResult, expensesResult] = await Promise.all([
+        getFinishedOrdersWithItems(),
+        getExpenses()
+      ])
+      
+      const orders = ordersResult.data || []
+      const expenses = expensesResult.data || []
 
-    // 2. Agrupar por Mes (Clave: '2026-01')
-    const grouped = {}
+      const grouped = {}
 
     // Procesar Ingresos
     orders.forEach(o => {
@@ -71,6 +77,11 @@ export default function BillingHistory() {
     }).sort((a, b) => b.key.localeCompare(a.key))
 
     setHistory(list)
+    } catch (error) {
+      console.error('Error cargando historial:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const toggleMonth = (key) => {
@@ -84,8 +95,13 @@ export default function BillingHistory() {
       </h1>
 
       <div className="space-y-4">
-        {history.length === 0 ? (
-            <p className="text-center text-gray-400 py-10">No hay registros históricos aún.</p>
+        {loading ? (
+          <div className="text-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
+            <p className="text-gray-400">Cargando historial...</p>
+          </div>
+        ) : history.length === 0 ? (
+            <p className="text-center text-gray-400 py-10 bg-white rounded-xl border border-dashed border-gray-300">No hay registros históricos aún.</p>
         ) : (
             history.map(month => (
                 <div key={month.key} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">

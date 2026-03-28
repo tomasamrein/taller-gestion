@@ -13,8 +13,12 @@ export default function VehicleManager({ client, onClose }) {
 
   const load = async () => {
     if (!client) return
-    const data = await getVehiclesByClient(client.id)
-    setVehicles(data)
+    const { data, error } = await getVehiclesByClient(client.id)
+    if (error) {
+      toast.error('Error al cargar vehículos')
+      return
+    }
+    setVehicles(data || [])
   }
 
   const handleCreate = async (e) => {
@@ -23,7 +27,8 @@ export default function VehicleManager({ client, onClose }) {
 
     setLoading(true)
     try {
-        await createVehicle({ ...newCar, client_id: client.id })
+        const { error } = await createVehicle({ ...newCar, client_id: client.id })
+        if (error) throw new Error(error)
         toast.success('Vehículo agregado')
         setNewCar({ brand: '', model: '', year: '', patent: '' })
         load()
@@ -37,7 +42,11 @@ export default function VehicleManager({ client, onClose }) {
 
   const handleDelete = async (id) => {
     if (confirm('¿Borrar vehículo?')) {
-        await deleteVehicle(id)
+        const { error } = await deleteVehicle(id)
+        if (error) {
+          toast.error('Error al eliminar')
+          return
+        }
         toast.success('Vehículo eliminado')
         load()
     }
@@ -48,19 +57,17 @@ export default function VehicleManager({ client, onClose }) {
     const description = prompt(`¿Qué trabajo hay que hacerle al ${vehicle.model}?`)
     if (!description) return 
 
-    await toast.promise(
-        createOrder({ 
-            vehicle_id: vehicle.id, 
-            description: description 
-        }),
-        {
-            loading: 'Ingresando al taller...',
-            success: '¡Auto ingresado al Taller! 🔧',
-            error: 'Error: No se pudo ingresar el auto',
-        }
-    )
+    const { error } = await createOrder({ 
+      vehicle_id: vehicle.id, 
+      description: description 
+    })
     
-    onClose()
+    if (error) {
+      toast.error('Error: No se pudo ingresar el auto')
+    } else {
+      toast.success('¡Auto ingresado al Taller!')
+      onClose()
+    }
   }
 
   return (

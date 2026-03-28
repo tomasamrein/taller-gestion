@@ -25,19 +25,22 @@ export default function NotificationCenter({ userRole }) {
   }
 
   const handleExpense = async (id, approved) => {
-    await approveExpense(id, approved, 'Admin')
+    const { error } = await approveExpense(id, approved, 'Admin')
+    if (error) {
+      toast.error('Error al procesar')
+      return
+    }
     toast.success(approved ? 'Gasto Aprobado' : 'Gasto Rechazado')
     loadPending()
   }
 
   const handleOrder = async (id, approved) => {
-    if (approved) {
-        await updateOrderStatus(id, 'finalizado')
-        toast.success('Orden Finalizada')
-    } else {
-        await updateOrderStatus(id, 'en_proceso')
-        toast('Orden devuelta a proceso')
+    const { error } = await updateOrderStatus(id, approved ? 'finalizado' : 'en_proceso')
+    if (error) {
+      toast.error('Error al procesar')
+      return
     }
+    toast.success(approved ? 'Orden Finalizada' : 'Orden devuelta a proceso')
     loadPending()
   }
 
