@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { getClients, createClient, deleteClient, updateClient, getClientVehicles } from '../../services/clientService'
+import { getClients, createClient, deleteClient, updateClient } from '../../services/clientService'
+import { supabase } from '../../lib/supabase'
 import VehicleManager from '../vehicles/vehicleManager'
 import { useDebounce } from '../../hooks/useDebounce'
 import { Trash2, Car, UserPlus, Search, Phone, Mail, FileText, MessageCircle, User, X, Check, Edit2, Gauge } from 'lucide-react'
@@ -20,20 +21,21 @@ export default function ClientList() {
 
   const fetchClients = useCallback(async () => {
     try {
-      const { data, error } = await getClients()
-      if (error) throw new Error(error)
-      setClients(data)
+      setLoading(true)
+      const [{ data: clientsData, error: clientsError }, { data: allVehicles, error: vehiclesError }] = await Promise.all([
+        getClients(),
+        supabase.from('vehicles').select('*')
+      ])
       
-      const vehiclesPromises = (data || []).map(async (client) => {
-        const { data: vehicles } = await getClientVehicles(client.id)
-        return { clientId: client.id, vehicles: vehicles || [] }
-      })
+      if (clientsError) throw new Error(clientsError)
       
-      const vehiclesResults = await Promise.all(vehiclesPromises)
       const vehiclesMap = {}
-      vehiclesResults.forEach(({ clientId, vehicles }) => {
-        vehiclesMap[clientId] = vehicles
+      ;(allVehicles || []).forEach(v => {
+        if (!vehiclesMap[v.client_id]) vehiclesMap[v.client_id] = []
+        vehiclesMap[v.client_id].push(v)
       })
+      
+      setClients(clientsData || [])
       setVehiclesByClient(vehiclesMap)
     } catch (error) { 
       console.error(error)

@@ -12,9 +12,14 @@ export default function Expenses({ userRole, userName }) {
   const [showTemplates, setShowTemplates] = useState(false)
 
   useEffect(() => {
-    const savedTemplates = localStorage.getItem(RECURRING_TEMPLATES_KEY)
-    if (savedTemplates) {
-      setTemplates(JSON.parse(savedTemplates))
+    try {
+      const savedTemplates = localStorage.getItem(RECURRING_TEMPLATES_KEY)
+      if (savedTemplates) {
+        setTemplates(JSON.parse(savedTemplates))
+      }
+    } catch (e) {
+      console.error('Error parsing templates:', e)
+      localStorage.removeItem(RECURRING_TEMPLATES_KEY)
     }
   }, [])
 

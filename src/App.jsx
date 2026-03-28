@@ -36,7 +36,7 @@ function App() {
           setUserData({
             id: session.user.id,
             email: session.user.email,
-            name: metadata.full_name || session.user.email.split('@')[0],
+            name: metadata.full_name || session.user.email?.split('@')[0] || 'Usuario',
             role: metadata.role || 'empleado',
             taller_id: metadata.taller_id || null
           })
@@ -65,7 +65,7 @@ function App() {
         setUserData({
           id: session.user.id,
           email: session.user.email,
-          name: metadata.full_name || session.user.email.split('@')[0],
+          name: metadata.full_name || session.user.email?.split('@')[0] || 'Usuario',
           role: metadata.role || 'empleado',
           taller_id: metadata.taller_id || null
         })

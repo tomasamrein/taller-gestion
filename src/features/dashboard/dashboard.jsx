@@ -58,7 +58,7 @@ export default function Dashboard() {
           rawId: o.id,
           displayDate: o.delivery_date || o.updated_at || o.created_at, 
           description: `Servicio ${o.vehicles?.brand || ''} ${o.vehicles?.model || ''}`,
-          amount: o.order_items?.reduce((sum, i) => sum + (Number(i.unit_price) * Number(i.quantity)), 0) || 0,
+          amount: (o.order_items || []).reduce((sum, i) => sum + (Number(i.unit_price) * Number(i.quantity)), 0),
           type: 'ingreso'
       }))
 
@@ -119,7 +119,7 @@ export default function Dashboard() {
             const d = fixDate(o.delivery_date || o.created_at)
             if (d.getMonth() === mesActual && d.getFullYear() === anioActual) {
                 const dia = d.getDate()
-                const total = o.order_items?.reduce((sum, i) => sum + (Number(i.unit_price) * Number(i.quantity)), 0) || 0
+                const total = (o.order_items || []).reduce((sum, i) => sum + (Number(i.unit_price) * Number(i.quantity)), 0)
                 if(datosGrafico[dia]) datosGrafico[dia].Ingresos += total
             }
         })
@@ -140,7 +140,7 @@ export default function Dashboard() {
             const d = fixDate(o.delivery_date || o.created_at)
             if (d.getFullYear() === anioActual) {
                 const mes = d.getMonth()
-                const total = o.order_items?.reduce((sum, i) => sum + (Number(i.unit_price) * Number(i.quantity)), 0) || 0
+                const total = (o.order_items || []).reduce((sum, i) => sum + (Number(i.unit_price) * Number(i.quantity)), 0)
                 datosGrafico[mes].Ingresos += total
             }
         })
@@ -162,7 +162,7 @@ export default function Dashboard() {
             const d = fixDate(o.delivery_date || o.created_at)
             if (d.getFullYear() === anioActual) {
                 const sem = getSemestre(d.getMonth())
-                const total = o.order_items?.reduce((sum, i) => sum + (Number(i.unit_price) * Number(i.quantity)), 0) || 0
+                const total = (o.order_items || []).reduce((sum, i) => sum + (Number(i.unit_price) * Number(i.quantity)), 0)
                 datosGrafico[sem].Ingresos += total
             }
         })
