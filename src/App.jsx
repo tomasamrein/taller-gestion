@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
+import { supabase } from './lib/supabase'
 import Login from './features/auth/login'
 import Layout from './components/shared/Layout'
 import Dashboard from './features/dashboard/dashboard'
@@ -12,45 +13,77 @@ import Suppliers from './features/suppliers/suppliers'
 import TeamManager from './features/team/teamManager'
 import Agenda from './features/calendar/Agenda'
 import BillingHistory from './features/admin/billingHistory'
-// AHORA EN MINÚSCULA (Como lo dejaste vos)
 import AuditLog from './features/admin/auditLog'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userRole, setUserRole] = useState(null)
+  const [userData, setUserData] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const localAuth = localStorage.getItem('auth') === 'true'
-    const localRole = localStorage.getItem('role')
-    const sessionAuth = sessionStorage.getItem('auth') === 'true'
-    const sessionRole = sessionStorage.getItem('role')
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        const metadata = session.user.user_metadata || {}
+        setIsAuthenticated(true)
+        setUserRole(metadata.role || 'empleado')
+        setUserData({
+          id: session.user.id,
+          email: session.user.email,
+          name: metadata.full_name || session.user.email.split('@')[0],
+          role: metadata.role || 'empleado',
+          taller_id: metadata.taller_id || null
+        })
+      } else {
+        setIsAuthenticated(false)
+        setUserRole(null)
+        setUserData(null)
+      }
+      setLoading(false)
+    })
 
-    if (localAuth) {
-      setIsAuthenticated(true)
-      setUserRole(localRole)
-    } else if (sessionAuth) {
-      setIsAuthenticated(true)
-      setUserRole(sessionRole)
-    }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const metadata = session.user.user_metadata || {}
+        setIsAuthenticated(true)
+        setUserRole(metadata.role || 'empleado')
+        setUserData({
+          id: session.user.id,
+          email: session.user.email,
+          name: metadata.full_name || session.user.email.split('@')[0],
+          role: metadata.role || 'empleado',
+          taller_id: metadata.taller_id || null
+        })
+      }
+      setLoading(false)
+    })
   }, [])
 
-  const handleLogin = (userData, rememberMe) => {
-    if (rememberMe) {
-      localStorage.setItem('auth', 'true')
-      localStorage.setItem('role', userData.role)
-    } else {
-      sessionStorage.setItem('auth', 'true')
-      sessionStorage.setItem('role', userData.role)
-    }
+  const handleLogin = (data, rememberMe) => {
+    setUserData(data)
+    setUserRole(data.role)
     setIsAuthenticated(true)
-    setUserRole(userData.role)
+    
+    if (rememberMe) {
+      localStorage.setItem('user_session', JSON.stringify(data))
+    }
   }
 
-  const handleLogout = () => {
-    localStorage.clear()
-    sessionStorage.clear()
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    localStorage.removeItem('user_session')
+    sessionStorage.removeItem('user_session')
     setIsAuthenticated(false)
     setUserRole(null)
+    setUserData(null)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+      </div>
+    )
   }
 
   return (
@@ -61,19 +94,15 @@ function App() {
         {!isAuthenticated ? (
           <Route path="*" element={<Login onLogin={handleLogin} />} />
         ) : (
-          <Route path="/" element={<Layout onLogout={handleLogout} userRole={userRole} />}>
+          <Route path="/" element={<Layout onLogout={handleLogout} userRole={userRole} userData={userData} />}>
             <Route index element={<Dashboard />} />
             <Route path="agenda" element={<Agenda />} />
             <Route path="clientes" element={<ClientList />} />
             <Route path="taller" element={<WorkshopBoard userRole={userRole} />} />
             <Route path="inventario" element={<Inventory />} />
-            
-            {/* ESTA LÍNEA ARREGLA EL BUG DE GASTOS (Le pasa el rol) */}
-            <Route path="gastos" element={<Expenses userRole={userRole} userName="Admin" />} />
-            
+            <Route path="gastos" element={<Expenses userRole={userRole} userName={userData?.name || 'Usuario'} />} />
             <Route path="proveedores" element={<Suppliers />} />
             
-            {/* ESTO ARREGLA EL ERROR ROJO DE SINTAXIS (Las etiquetas <>) */}
             {userRole === 'admin' && (
               <> 
                 <Route path="equipo" element={<TeamManager />} />

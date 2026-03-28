@@ -1,110 +1,147 @@
 import { supabase } from '../lib/supabase'
 
-export const createOrder = async (order) => {
-  const { data, error } = await supabase.from('work_orders')
-    .insert([{
-      vehicle_id: order.vehicle_id,
-      description: order.description,
-      status: 'pendiente' 
-    }])
-    .select() 
-  
-  if (error) throw error
-  return data
-}
-
 export const getActiveOrders = async () => {
-  const { data, error } = await supabase
-    .from('work_orders')
-    .select(`
-      *,
-      vehicles (
+  try {
+    const { data, error } = await supabase
+      .from('work_orders')
+      .select(`
         *,
-        clients ( * ) 
-      )
-    `)
-    .neq('status', 'finalizado')
-    .order('updated_at', { ascending: false })
-  
-  if (error) {
-    console.error('Error fetching orders:', error)
-    return []
+        vehicles (
+          *,
+          clients ( * ) 
+        )
+      `)
+      .neq('status', 'finalizado')
+      .order('updated_at', { ascending: false })
+    
+    if (error) throw error
+    return { data: data || [], error: null }
+  } catch (error) {
+    console.error('Error fetching active orders:', error.message)
+    return { data: [], error: error.message }
   }
-  return data || []
 }
 
-// --- CAMBIO: Paginación Inteligente ---
 export const getFinishedOrdersWithItems = async (page = null, limit = 30) => {
-  let query = supabase
-    .from('work_orders')
-    .select(`
-      *,
-      vehicles (
+  try {
+    let query = supabase
+      .from('work_orders')
+      .select(`
         *,
-        clients ( * )
-      ),
-      order_items ( * )
-    `)
-    .eq('status', 'finalizado')
-    .order('updated_at', { ascending: false }) 
+        vehicles (
+          *,
+          clients ( * )
+        ),
+        order_items ( * )
+      `)
+      .eq('status', 'finalizado')
+      .order('updated_at', { ascending: false })
 
-  // Si nos pasan número de página (desde el Tablero), limitamos los resultados.
-  // Si no nos pasan (desde el Dashboard), trae todo para armar los gráficos.
-  if (page !== null && page !== undefined) {
+    if (page !== null && page !== undefined) {
       const from = page * limit;
       const to = from + limit - 1;
       query = query.range(from, to);
-  }
+    }
 
-  const { data, error } = await query;
-  if (error) console.error(error)
-  return data || []
+    const { data, error } = await query;
+    if (error) throw error
+    return { data: data || [], error: null }
+  } catch (error) {
+    console.error('Error fetching finished orders:', error.message)
+    return { data: [], error: error.message }
+  }
+}
+
+export const createOrder = async (order) => {
+  try {
+    const { data, error } = await supabase.from('work_orders')
+      .insert([{
+        vehicle_id: order.vehicle_id,
+        description: order.description,
+        status: 'pendiente' 
+      }])
+      .select() 
+    
+    if (error) throw error
+    return { data: data[0], error: null }
+  } catch (error) {
+    console.error('Error creating order:', error.message)
+    return { data: null, error: error.message }
+  }
 }
 
 export const updateOrderStatus = async (id, status) => {
-  const updates = { 
-    status, 
-    updated_at: new Date().toISOString() 
+  try {
+    const updates = { 
+      status, 
+      updated_at: new Date().toISOString() 
+    }
+
+    if (status === 'finalizado') {
+      updates.delivery_date = new Date().toISOString()
+    }
+
+    const { error } = await supabase
+      .from('work_orders')
+      .update(updates)
+      .eq('id', id)
+
+    if (error) throw error
+    return { error: null }
+  } catch (error) {
+    console.error('Error updating order status:', error.message)
+    return { error: error.message }
   }
-
-  if (status === 'finalizado') {
-    updates.delivery_date = new Date().toISOString()
-  }
-
-  const { error } = await supabase
-    .from('work_orders')
-    .update(updates)
-    .eq('id', id)
-
-  if (error) throw error
 }
 
-// FUNCIONES DE ITEMS
 export const getOrderItems = async (orderId) => {
-  const { data, error } = await supabase
-    .from('order_items')
-    .select('*')
-    .eq('order_id', orderId)
-    
-  if (error) console.error(error)
-  return data || []
+  try {
+    const { data, error } = await supabase
+      .from('order_items')
+      .select('*')
+      .eq('order_id', orderId)
+      
+    if (error) throw error
+    return { data: data || [], error: null }
+  } catch (error) {
+    console.error('Error fetching order items:', error.message)
+    return { data: [], error: error.message }
+  }
 }
 
 export const addOrderItem = async (item) => {
-  const { error } = await supabase.from('order_items').insert([item])
-  if (error) throw error
+  try {
+    const { error } = await supabase.from('order_items').insert([item])
+    if (error) throw error
+    return { error: null }
+  } catch (error) {
+    console.error('Error adding order item:', error.message)
+    return { error: error.message }
+  }
 }
 
 export const deleteOrderItem = async (id) => {
+  try {
     const { error } = await supabase.from('order_items').delete().eq('id', id)
     if (error) throw error
+    return { error: null }
+  } catch (error) {
+    console.error('Error deleting order item:', error.message)
+    return { error: error.message }
+  }
 }
 
 export const updateOrderItem = async (id, updates) => {
-  const { error } = await supabase
-    .from('order_items')
-    .update(updates)
-    .eq('id', id)
-  
-  if (error) throw error
+  try {
+    const { error } = await supabase
+      .from('order_items')
+      .update(updates)
+      .eq('id', id)
+    
+    if (error) throw error
+    return { error: null }
+  } catch (error) {
+    console.error('Error updating order item:', error.message)
+    return { error: error.message }
+  }
 }

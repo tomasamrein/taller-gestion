@@ -1,48 +1,55 @@
 import { supabase } from '../lib/supabase'
 
 export const getClients = async () => {
-  // Traemos todos los datos de la tabla 'clients'
-  const { data, error } = await supabase
-    .from('clients')
-    .select('*')
-    .order('created_at', { ascending: false })
-    
-  if (error) throw error
-  return data
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .order('created_at', { ascending: false })
+      
+    if (error) throw error
+    return { data: data || [], error: null }
+  } catch (error) {
+    console.error('Error fetching clients:', error.message)
+    return { data: [], error: error.message }
+  }
 }
 
 export const createClient = async (client) => {
-  // Preparamos el objeto para enviar a la base de datos
-  // Si tu base usa 'full_name' en lugar de name/lastname separados, avísame y cambiamos esto.
-  // Por ahora asumo que corriste el SQL y tenés 'name' y 'lastname'.
-  
-  const payload = {
-    name: client.name,
-    lastname: client.lastname,
-    phone: client.phone,
-    email: client.email,
-    cuil: client.cuil,
-    // Creamos un full_name automático por si algún componente viejo lo usa
-    full_name: `${client.name} ${client.lastname}`.trim() 
-  }
+  try {
+    const payload = {
+      name: client.name,
+      lastname: client.lastname,
+      phone: client.phone,
+      email: client.email,
+      cuil: client.cuil,
+      full_name: `${client.name} ${client.lastname}`.trim() 
+    }
 
-  const { data, error } = await supabase
-    .from('clients')
-    .insert([payload])
-    .select()
+    const { data, error } = await supabase
+      .from('clients')
+      .insert([payload])
+      .select()
 
-  if (error) {
-    console.error("Error Supabase:", error.message) // Esto nos ayuda a ver el error real en consola
-    throw error
+    if (error) throw error
+    return { data: data[0], error: null }
+  } catch (error) {
+    console.error('Error creating client:', error.message)
+    return { data: null, error: error.message }
   }
-  return data
 }
 
 export const deleteClient = async (id) => {
-  const { error } = await supabase
-    .from('clients')
-    .delete()
-    .eq('id', id)
+  try {
+    const { error } = await supabase
+      .from('clients')
+      .delete()
+      .eq('id', id)
 
-  if (error) throw error
+    if (error) throw error
+    return { error: null }
+  } catch (error) {
+    console.error('Error deleting client:', error.message)
+    return { error: error.message }
+  }
 }

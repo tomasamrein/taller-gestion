@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { getFinishedOrdersWithItems, getActiveOrders } from '../../services/orderService'
 import { getExpenses } from '../../services/managementService'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
@@ -9,98 +9,98 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState([])
   const [recentActivity, setRecentActivity] = useState([])
   const [viewMode, setViewMode] = useState('day') 
+  const [loading, setLoading] = useState(true)
 
   const [rawData, setRawData] = useState({ orders: [], expenses: [] })
 
-  // --- FUNCIÓN FIXDATE MEJORADA ---
   const fixDate = (dateString) => {
     if (!dateString) return new Date()
     if (dateString instanceof Date) return dateString
 
     const str = String(dateString).trim()
 
-    // 1. Si viene SOLO la fecha de la base de datos ("YYYY-MM-DD" = 10 caracteres)
     if (str.length <= 10) {
         return new Date(`${str}T12:00:00`)
     }
 
-    // 2. Si viene formato puro de Postgres con espacio ("2026-02-28 15:30:00")
     if (str.includes(' ') && !str.includes('T')) {
         return new Date(str.replace(' ', 'T'))
     }
 
-    // 3. Si ya viene con formato ISO perfecto con la 'T'
     return new Date(str)
   }
 
-  useEffect(() => { cargarDatosIniciales() }, [])
+  const cargarDatosIniciales = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [ordersResult, activeResult, expensesResult] = await Promise.all([
+        getFinishedOrdersWithItems(),
+        getActiveOrders(),
+        getExpenses()
+      ])
+
+      const ordenesFinalizadas = ordersResult.data || []
+      const ordenesActivas = activeResult.data || []
+      const todosLosGastos = expensesResult.data || []
+
+      setRawData({ orders: ordenesFinalizadas, expenses: todosLosGastos })
+
+      const hoy = new Date()
+      const mesActual = hoy.getMonth()
+      const anioActual = hoy.getFullYear()
+      const esEsteMes = (d) => d.getMonth() === mesActual && d.getFullYear() === anioActual
+
+      const ordenesMes = ordenesFinalizadas.filter(o => esEsteMes(fixDate(o.delivery_date || o.created_at)))
+      const gastosMes = todosLosGastos.filter(g => esEsteMes(fixDate(g.date)) && g.status === 'approved')
+
+      const ingresosLista = ordenesMes.map(o => ({
+          id: `ing-${o.id}`,
+          rawId: o.id,
+          displayDate: o.delivery_date || o.updated_at || o.created_at, 
+          description: `Servicio ${o.vehicles?.brand || ''} ${o.vehicles?.model || ''}`,
+          amount: o.order_items?.reduce((sum, i) => sum + (Number(i.unit_price) * Number(i.quantity)), 0) || 0,
+          type: 'ingreso'
+      }))
+
+      const gastosLista = gastosMes.map(g => ({
+          id: `gas-${g.id}`,
+          rawId: g.id,
+          displayDate: g.created_at || g.date,
+          description: g.description,
+          amount: Number(g.amount),
+          type: 'egreso'
+      }))
+
+      const mix = [...ingresosLista, ...gastosLista].sort((a, b) => {
+          const dateA = new Date(a.displayDate).getTime()
+          const dateB = new Date(b.displayDate).getTime()
+          return dateB - dateA
+      })
+      setRecentActivity(mix)
+
+      const totalIngresos = ingresosLista.reduce((s, i) => s + i.amount, 0)
+      const totalGastos = gastosLista.reduce((s, g) => s + g.amount, 0)
+      
+      setStats({ 
+          total: ordenesMes.length, 
+          gananciaNeta: totalIngresos - totalGastos,
+          pendientes: ordenesActivas.filter(o => o.status !== 'finalizado').length
+      })
+
+    } catch (error) {
+        console.error("Error cargando datos:", error)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { cargarDatosIniciales() }, [cargarDatosIniciales])
 
   useEffect(() => {
     if (rawData.orders.length > 0 || rawData.expenses.length > 0) {
         procesarGrafico(viewMode, rawData.orders, rawData.expenses)
     }
   }, [viewMode, rawData])
-
-  const cargarDatosIniciales = async () => {
-    try {
-        const ordenesFinalizadas = await getFinishedOrdersWithItems() || []
-        const ordenesActivas = await getActiveOrders() || []
-        const todosLosGastos = await getExpenses() || []
-
-        setRawData({ orders: ordenesFinalizadas, expenses: todosLosGastos })
-
-        // --- ESTADÍSTICAS ---
-        const hoy = new Date()
-        const mesActual = hoy.getMonth()
-        const anioActual = hoy.getFullYear()
-        const esEsteMes = (d) => d.getMonth() === mesActual && d.getFullYear() === anioActual
-
-        // Para totales ($) usamos la fecha de entrega/cobro
-        const ordenesMes = ordenesFinalizadas.filter(o => esEsteMes(fixDate(o.delivery_date || o.created_at)))
-        const gastosMes = todosLosGastos.filter(g => esEsteMes(fixDate(g.date)) && g.status === 'approved')
-
-        // --- LISTA DE MOVIMIENTOS (FEED) ---
-        const ingresosLista = ordenesMes.map(o => ({
-            id: `ing-${o.id}`,
-            rawId: o.id,
-            // PRIORIDAD ARREGLADA: delivery_date (cobro) -> updated_at -> created_at
-            displayDate: o.delivery_date || o.updated_at || o.created_at, 
-            description: `Servicio ${o.vehicles?.brand || ''} ${o.vehicles?.model || ''}`,
-            amount: o.order_items?.reduce((sum, i) => sum + (Number(i.unit_price) * Number(i.quantity)), 0) || 0,
-            type: 'ingreso'
-        }))
-
-        const gastosLista = gastosMes.map(g => ({
-            id: `gas-${g.id}`,
-            rawId: g.id,
-            displayDate: g.created_at || g.date,
-            description: g.description,
-            amount: Number(g.amount),
-            type: 'egreso'
-        }))
-
-        // ORDENAMIENTO ESTRICTO POR TIMESTAMP
-        const mix = [...ingresosLista, ...gastosLista].sort((a, b) => {
-            const dateA = new Date(a.displayDate).getTime()
-            const dateB = new Date(b.displayDate).getTime()
-            return dateB - dateA
-        })
-        setRecentActivity(mix)
-
-        // Totales de Dinero
-        const totalIngresos = ingresosLista.reduce((s, i) => s + i.amount, 0)
-        const totalGastos = gastosLista.reduce((s, g) => s + g.amount, 0)
-        
-        setStats({ 
-            total: ordenesMes.length, 
-            gananciaNeta: totalIngresos - totalGastos,
-            pendientes: ordenesActivas.filter(o => o.status !== 'finalizado').length
-        })
-
-    } catch (error) {
-        console.error("Error cargando datos:", error)
-    }
-  }
 
   const procesarGrafico = (modo, orders, expenses) => {
     const hoy = new Date()
@@ -109,14 +109,14 @@ export default function Dashboard() {
     let datosGrafico = {}
 
     const safeOrders = orders || []
-    const safeExpenses = expenses.filter(g => g.status === 'approved') || []
+    const safeExpenses = (expenses || []).filter(g => g.status === 'approved')
 
     if (modo === 'day') {
         const diasEnMes = new Date(anioActual, mesActual + 1, 0).getDate()
         for(let i=1; i<=diasEnMes; i++) datosGrafico[i] = { name: `${i}`, Ingresos: 0, Gastos: 0, order: i }
 
         safeOrders.forEach(o => {
-            const d = fixDate(o.delivery_date || o.created_at) // Gráfico usa fecha contable
+            const d = fixDate(o.delivery_date || o.created_at)
             if (d.getMonth() === mesActual && d.getFullYear() === anioActual) {
                 const dia = d.getDate()
                 const total = o.order_items?.reduce((sum, i) => sum + (Number(i.unit_price) * Number(i.quantity)), 0) || 0
@@ -125,7 +125,7 @@ export default function Dashboard() {
         })
 
         safeExpenses.forEach(g => {
-            const d = fixDate(g.date) // Gráfico usa fecha contable
+            const d = fixDate(g.date)
             if (d.getMonth() === mesActual && d.getFullYear() === anioActual) {
                 const dia = d.getDate()
                 if(datosGrafico[dia]) datosGrafico[dia].Gastos += Number(g.amount)
@@ -213,10 +213,10 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Autos Entregados (Mes)" value={stats.total} icon={Car} color="slate" />
-        <StatCard title="En Taller Ahora" value={stats.pendientes} icon={Wrench} color="orange" />
-        <StatCard title="Caja Neta (Mes)" value={`$${stats.gananciaNeta.toLocaleString()}`} icon={Wallet} color={stats.gananciaNeta >= 0 ? "green" : "red"} />
-        <StatCard title="Movimientos (Mes)" value={recentActivity.length} icon={TrendingUp} color="slate" />
+        <StatCard title="Autos Entregados (Mes)" value={loading ? '...' : stats.total} icon={Car} color="slate" />
+        <StatCard title="En Taller Ahora" value={loading ? '...' : stats.pendientes} icon={Wrench} color="orange" />
+        <StatCard title="Caja Neta (Mes)" value={loading ? '...' : `$${stats.gananciaNeta.toLocaleString()}`} icon={Wallet} color={stats.gananciaNeta >= 0 ? "green" : "red"} />
+        <StatCard title="Movimientos (Mes)" value={loading ? '...' : recentActivity.length} icon={TrendingUp} color="slate" />
       </div>
 
       <div className="bg-white p-4 lg:p-6 rounded-xl shadow-sm border border-gray-100">
@@ -230,17 +230,23 @@ export default function Dashboard() {
              </div>
           </div>
           
-          <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-              <XAxis dataKey="name" tick={{fontSize: 12, fill: '#6b7280'}} axisLine={false} tickLine={false} dy={10} />
-              <YAxis tick={{fontSize: 12, fill: '#6b7280'}} axisLine={false} tickLine={false} tickFormatter={(value) => `$${value/1000}k`} />
-              <Tooltip formatter={(value) => `$${value.toLocaleString()}`} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'}} cursor={{fill: '#f9fafb'}}/>
-              <Legend wrapperStyle={{paddingTop: '20px'}}/>
-              <Bar dataKey="Ingresos" name="Ingresos" fill="#8b5cf6" radius={[6, 6, 0, 0]} maxBarSize={50} />
-              <Bar dataKey="Gastos" name="Egresos" fill="#ef4444" radius={[6, 6, 0, 0]} maxBarSize={50} />
-            </BarChart>
-          </ResponsiveContainer>
+          {loading ? (
+            <div className="h-[320px] flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                <XAxis dataKey="name" tick={{fontSize: 12, fill: '#6b7280'}} axisLine={false} tickLine={false} dy={10} />
+                <YAxis tick={{fontSize: 12, fill: '#6b7280'}} axisLine={false} tickLine={false} tickFormatter={(value) => `$${value/1000}k`} />
+                <Tooltip formatter={(value) => `$${value.toLocaleString()}`} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'}} cursor={{fill: '#f9fafb'}}/>
+                <Legend wrapperStyle={{paddingTop: '20px'}}/>
+                <Bar dataKey="Ingresos" name="Ingresos" fill="#8b5cf6" radius={[6, 6, 0, 0]} maxBarSize={50} />
+                <Bar dataKey="Gastos" name="Egresos" fill="#ef4444" radius={[6, 6, 0, 0]} maxBarSize={50} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col max-h-[400px]">
@@ -253,7 +259,11 @@ export default function Dashboard() {
         </div>
         
         <div className="overflow-y-auto overflow-x-auto flex-1 p-0 custom-scrollbar">
-            {recentActivity.length === 0 ? (
+            {loading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto"></div>
+                </div>
+            ) : recentActivity.length === 0 ? (
                 <div className="text-center py-12">
                     <p className="text-gray-400 font-medium">Sin movimientos este mes.</p>
                 </div>
@@ -272,7 +282,6 @@ export default function Dashboard() {
                                     <p className="text-xs uppercase font-bold text-gray-400 flex items-center gap-1">
                                     {fixDate(mov.displayDate).toLocaleDateString()}
                                     <span className="text-gray-300">•</span>
-                                    {/* Muestra la hora y los minutos exactos del cierre */}
                                     {fixDate(mov.displayDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}hs
                                 </p>
                                 </td>
@@ -287,7 +296,6 @@ export default function Dashboard() {
         </div>
       </div>
       
-      {/* Botón Soporte */}
       <a href="https://wa.me/5493437479134" target="_blank" rel="noreferrer" className="fixed bottom-6 right-6 bg-slate-900 text-white px-4 py-3 rounded-full shadow-xl hover:bg-violet-600 transition-all duration-300 flex items-center gap-2 text-sm font-bold z-50 hover:scale-105 group border-2 border-slate-700 hover:border-violet-500">
         <LifeBuoy size={20} className="group-hover:animate-spin-slow" />
         <span className="hidden sm:inline">Soporte Técnico</span>

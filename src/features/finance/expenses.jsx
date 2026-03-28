@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { getExpenses, createExpense, deleteExpense } from '../../services/managementService'
 import { TrendingDown, Trash2, Wallet, AlertCircle, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -7,21 +7,22 @@ export default function Expenses({ userRole, userName }) {
   const [expenses, setExpenses] = useState([])
   const [form, setForm] = useState({ description: '', amount: '', category: 'Varios' })
 
-  useEffect(() => { load() }, [])
-
-  const load = async () => { 
-    const data = await getExpenses()
-    
-    // --- LÓGICA DE ORDENAMIENTO MEJORADA ---
+  const load = useCallback(async () => { 
+    const { data, error } = await getExpenses()
+    if (error) {
+      toast.error('Error al cargar gastos')
+      return
+    }
     const sortedData = (data || []).sort((a, b) => {
         const dateA = new Date(a.date).getTime()
         const dateB = new Date(b.date).getTime()
         if (dateA !== dateB) return dateB - dateA
         return b.id - a.id
     })
-    
     setExpenses(sortedData) 
-  }
+  }, [])
+
+  useEffect(() => { load() }, [load])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -30,38 +31,37 @@ export default function Expenses({ userRole, userName }) {
         return toast.error('Completá todos los campos')
     }
 
-    // --- FIX DE SEGURIDAD (ACÁ ESTÁ LA MAGIA) ---
-    // Leemos el usuario real de la sesión guardada en el navegador.
-    // Esto evita que si las props vienen mal, se guarde con el nombre incorrecto.
     const sessionStr = localStorage.getItem('user_session')
     const sessionUser = sessionStr ? JSON.parse(sessionStr) : null
     
-    // Usamos los datos de la sesión real (o los props como respaldo)
     const realRole = sessionUser?.role || userRole
     const realName = sessionUser?.name || userName 
 
-    await toast.promise(
-        createExpense(form, realRole, realName), // <--- Enviamos los datos reales
-        {
-            loading: 'Procesando...',
-            success: (data) => realRole === 'admin' ? 'Gasto guardado ✅' : 'Enviado a aprobación 👮‍♂️',
-            error: 'Error al guardar',
-        }
-    )
+    const { error } = await createExpense(form, realRole, realName)
     
+    if (error) {
+      toast.error('Error al guardar')
+      return
+    }
+    
+    toast.success(realRole === 'admin' ? 'Gasto guardado' : 'Enviado a aprobación')
     setForm({ description: '', amount: '', category: 'Varios' })
     load()
   }
 
   const handleDelete = async (id, status) => {
     const mensaje = status === 'approved' 
-        ? '⚠️ ¡CUIDADO! Estás por borrar un gasto YA APROBADO.\nEsto modificará el total de la caja.\n\n¿Estás seguro?'
+        ? 'CUIDADO! Estás por borrar un gasto YA APROBADO. Esto modificará el total de la caja. Estás seguro?'
         : '¿Borrar este gasto pendiente?'
 
     if(window.confirm(mensaje)) { 
-        await deleteExpense(id); 
-        load(); 
-        toast.success('Gasto eliminado')
+      const { error } = await deleteExpense(id)
+      if (error) {
+        toast.error('Error al eliminar')
+        return
+      }
+      load()
+      toast.success('Gasto eliminado')
     }
   }
 
@@ -72,7 +72,6 @@ export default function Expenses({ userRole, userName }) {
   return (
     <div className="p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
       
-      {/* Panel Izquierdo */}
       <div className="space-y-6">
         <div className="bg-white p-6 rounded-xl border-l-4 border-red-500 shadow-sm">
           <h3 className="text-gray-500 font-bold uppercase text-xs flex items-center gap-2 tracking-wider">
@@ -110,7 +109,6 @@ export default function Expenses({ userRole, userName }) {
         </div>
       </div>
 
-      {/* Lista Derecha */}
       <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border overflow-hidden">
         <div className="overflow-x-auto">
             <table className="w-full">

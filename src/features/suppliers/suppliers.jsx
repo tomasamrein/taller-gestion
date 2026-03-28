@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { getSuppliers, createSupplier, deleteSupplier } from '../../services/managementService'
 import { Truck, Phone, MessageCircle, Trash2, Plus, User, CreditCard, Mail, FileText, Copy, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -9,16 +9,28 @@ export default function Suppliers() {
   const [newSup, setNewSup] = useState({ name: '', phone: '', category: '', alias: '', cuil: '', email: '' })
   const [copiedId, setCopiedId] = useState(null)
 
-  useEffect(() => { load() }, [])
-  const load = async () => { setSuppliers(await getSuppliers()) }
+  const load = useCallback(async () => {
+    const { data, error } = await getSuppliers()
+    if (error) {
+      toast.error('Error al cargar proveedores')
+      return
+    }
+    setSuppliers(data)
+  }, [])
+
+  useEffect(() => { load() }, [load])
 
   const handleCreate = async (e) => {
     e.preventDefault()
     if (!newSup.name) return toast.error('El nombre es obligatorio')
     
-    await createSupplier(newSup)
-    toast.success('Proveedor guardado')
+    const { error } = await createSupplier(newSup)
+    if (error) {
+      toast.error('Error al guardar proveedor')
+      return
+    }
     
+    toast.success('Proveedor guardado')
     setNewSup({ name: '', phone: '', category: '', alias: '', cuil: '', email: '' })
     setIsModalOpen(false)
     load()
@@ -26,7 +38,11 @@ export default function Suppliers() {
 
   const handleDelete = async (id) => {
     if (window.confirm('¿Dejar de trabajar con este proveedor?')) {
-      await deleteSupplier(id)
+      const { error } = await deleteSupplier(id)
+      if (error) {
+        toast.error('Error al eliminar proveedor')
+        return
+      }
       load()
       toast.success('Proveedor eliminado')
     }
@@ -47,13 +63,11 @@ export default function Suppliers() {
       setTimeout(() => setCopiedId(null), 2000)
   }
 
-  // Clases comunes para los inputs y labels (para no repetir tanto)
   const inputClasses = "w-full border border-gray-300 px-4 py-3 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white transition text-gray-700 text-sm"
   const labelClasses = "block text-xs font-bold text-gray-600 uppercase mb-2 tracking-wide"
 
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto animate-fade-in">
-      {/* --- CABECERA Y LISTA (Igual que antes) --- */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-3">
@@ -142,7 +156,6 @@ export default function Suppliers() {
         ))}
       </div>
 
-      {/* --- MODAL CORREGIDO --- */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <form onSubmit={handleCreate} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -155,13 +168,11 @@ export default function Suppliers() {
             
             <div className="p-8 overflow-y-auto custom-scrollbar bg-gray-50">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Nombre (Ocupa 2 columnas) */}
                     <div className="md:col-span-2">
                         <label className={labelClasses}>Nombre / Empresa *</label>
                         <input className={inputClasses} value={newSup.name} onChange={e => setNewSup({...newSup, name: e.target.value})} autoFocus placeholder="Ej: Repuestos El Tuerca" />
                     </div>
                     
-                    {/* Rubro y Teléfono */}
                     <div>
                         <label className={labelClasses}>Rubro</label>
                         <input className={inputClasses} value={newSup.category} onChange={e => setNewSup({...newSup, category: e.target.value})} placeholder="Ej: Aceites y Filtros" />
@@ -171,13 +182,11 @@ export default function Suppliers() {
                         <input type="tel" className={inputClasses} value={newSup.phone} onChange={e => setNewSup({...newSup, phone: e.target.value})} placeholder="Ej: 342 123456" />
                     </div>
 
-                    {/* Alias (Ocupa 2 columnas y es azulcito) */}
                     <div className="md:col-span-2">
                         <label className={labelClasses + " text-blue-600 flex items-center gap-2"}><CreditCard size={16}/> Alias / CBU (Para pagos)</label>
                         <input className={inputClasses + " bg-blue-50/30 border-blue-200 focus:ring-blue-500 focus:border-blue-500"} value={newSup.alias} onChange={e => setNewSup({...newSup, alias: e.target.value})} placeholder="Ej: TALLER.GARCIA.MP" />
                     </div>
 
-                    {/* Email y CUIL */}
                     <div>
                         <label className={labelClasses}><Mail size={14} className="inline mr-1"/> Email</label>
                         <input type="email" className={inputClasses} value={newSup.email} onChange={e => setNewSup({...newSup, email: e.target.value})} placeholder="contacto@empresa.com" />
@@ -200,7 +209,6 @@ export default function Suppliers() {
           </form>
         </div>
       )}
-      {/* Se eliminó el bloque <style jsx> */}
     </div>
   )
 }

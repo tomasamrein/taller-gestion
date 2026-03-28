@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { getActiveOrders, updateOrderStatus, getFinishedOrdersWithItems } from '../../services/orderService'
 import OrderBilling from './orderBilling'
 import ChecklistManager from '../checklist/checklistManager' 
+import { useDebounce } from '../../hooks/useDebounce'
 import { Wrench, Calendar, MessageCircle, ArrowRight, Car, Lock, History, PlayCircle, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -13,47 +14,46 @@ export default function WorkshopBoard({ userRole }) {
   const [loading, setLoading] = useState(true)
   const [viewTab, setViewTab] = useState('activas') 
   
-  // --- ESTADOS PARA BÚSQUEDA Y PAGINACIÓN ---
   const [searchTerm, setSearchTerm] = useState('')
+  const debouncedSearchTerm = useDebounce(searchTerm, 300)
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
 
-  // Reseteamos y cargamos cada vez que se cambia de pestaña
+  const loadOrders = useCallback(async (currentPage = page, isReset = false) => {
+    if (isReset) setLoading(true)
+    else setLoadingMore(true)
+
+    try {
+      if (viewTab === 'activas') {
+        const { data, error } = await getActiveOrders()
+        if (error) throw new Error(error)
+        setOrders(data)
+      } else {
+        const { data, error } = await getFinishedOrdersWithItems(currentPage, 30)
+        if (error) throw new Error(error)
+        
+        if (data.length < 30) setHasMore(false)
+        else setHasMore(true)
+
+        if (isReset) setOrders(data)
+        else setOrders(prev => [...prev, ...data])
+      }
+    } catch (error) {
+      console.error("Error al cargar ordenes:", error)
+      toast.error("Error cargando tablero")
+    } finally {
+      setLoading(false)
+      setLoadingMore(false)
+    }
+  }, [page, viewTab])
+
   useEffect(() => { 
       setPage(0)
       setHasMore(true)
       setSearchTerm('')
       loadOrders(0, true) 
   }, [viewTab])
-
-  // Lógica de carga unificada
-  const loadOrders = async (currentPage = page, isReset = false) => {
-    if (isReset) setLoading(true)
-    else setLoadingMore(true)
-
-    try {
-        if (viewTab === 'activas') {
-            const data = await getActiveOrders()
-            setOrders(data)
-        } else {
-            // Traemos las finalizadas paginadas de a 30
-            const data = await getFinishedOrdersWithItems(currentPage, 30)
-            
-            if (data.length < 30) setHasMore(false)
-            else setHasMore(true)
-
-            if (isReset) setOrders(data)
-            else setOrders(prev => [...prev, ...data])
-        }
-    } catch (error) {
-        console.error("Error al cargar ordenes:", error)
-        toast.error("Error cargando tablero")
-    } finally {
-        setLoading(false)
-        setLoadingMore(false)
-    }
-  }
 
   const handleLoadMore = () => {
     const nextPage = page + 1
@@ -63,22 +63,22 @@ export default function WorkshopBoard({ userRole }) {
 
   const handleStatusChange = async (id, newStatus) => {
     if (newStatus === 'finalizado' && userRole !== 'admin') {
-        try {
-            await updateOrderStatus(id, 'revision')
-            toast('Enviado a revisión del Admin 👮‍♂️', { icon: '🔒' })
-            setPage(0); loadOrders(0, true); 
-        } catch (error) {
-            toast.error('Error al solicitar revisión')
-        }
+      const { error } = await updateOrderStatus(id, 'revision')
+      if (error) {
+        toast.error('Error al solicitar revisión')
+        return
+      }
+      toast('Enviado a revisión del Admin', { icon: '🔒' })
+      setPage(0); loadOrders(0, true); 
     } else {
-        try {
-            await updateOrderStatus(id, newStatus)
-            if(newStatus === 'finalizado') toast.success('Orden Finalizada y Cobrada 💰')
-            if(newStatus === 'en_proceso') toast.success('Orden Reabierta 🔄')
-            setPage(0); loadOrders(0, true);
-        } catch (error) {
-            toast.error('Error al cambiar estado')
-        }
+      const { error } = await updateOrderStatus(id, newStatus)
+      if (error) {
+        toast.error('Error al cambiar estado')
+        return
+      }
+      if(newStatus === 'finalizado') toast.success('Orden Finalizada y Cobrada')
+      if(newStatus === 'en_proceso') toast.success('Orden Reabierta')
+      setPage(0); loadOrders(0, true);
     }
   }
 
@@ -89,7 +89,7 @@ export default function WorkshopBoard({ userRole }) {
     if (!telefono) return toast.error('Sin teléfono cargado')
     let num = telefono.replace(/\D/g, '')
     if (!num.startsWith('54')) num = '549' + num
-    const mensaje = `Hola ${cliente}! Tu ${auto} (Patente: ${order.vehicles?.patent}) ya está LISTO para retirar. 🚗💨`
+    const mensaje = `Hola ${cliente}! Tu ${auto} (Patente: ${order.vehicles?.patent}) ya está LISTO para retirar.`
     window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensaje)}`, '_blank')
   }
 
@@ -105,22 +105,24 @@ export default function WorkshopBoard({ userRole }) {
 
   const handleRestrictedClick = (order, action) => {
     if (order.status === 'pendiente') {
-        toast.error('🚫 Debés iniciar la orden primero')
-        return
+      toast.error('Debes iniciar la orden primero')
+      return
     }
     action()
   }
 
-  // Lógica de Filtrado Local (Buscador)
-  const filteredOrders = orders.filter(order => {
-      if (viewTab === 'activas' || !searchTerm) return true;
-      const term = searchTerm.toLowerCase();
-      const clientName = order.vehicles?.clients?.full_name?.toLowerCase() || '';
-      const patent = order.vehicles?.patent?.toLowerCase() || '';
-      const vehicleInfo = `${order.vehicles?.brand} ${order.vehicles?.model}`.toLowerCase();
+  const filteredOrders = useMemo(() => {
+    if (viewTab === 'activas' || !debouncedSearchTerm) return orders
+    
+    const term = debouncedSearchTerm.toLowerCase()
+    return orders.filter(order => {
+      const clientName = order.vehicles?.clients?.full_name?.toLowerCase() || ''
+      const patent = order.vehicles?.patent?.toLowerCase() || ''
+      const vehicleInfo = `${order.vehicles?.brand} ${order.vehicles?.model}`.toLowerCase()
       
-      return clientName.includes(term) || patent.includes(term) || vehicleInfo.includes(term);
-  });
+      return clientName.includes(term) || patent.includes(term) || vehicleInfo.includes(term)
+    })
+  }, [orders, viewTab, debouncedSearchTerm])
 
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto animate-fade-in">
@@ -145,7 +147,6 @@ export default function WorkshopBoard({ userRole }) {
           </div>
       </div>
 
-      {/* BARRA DE BÚSQUEDA (Solo visible en Finalizadas) */}
       {viewTab === 'finalizadas' && (
           <div className="mb-6 animate-fade-in relative max-w-md">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex items-center p-2 focus-within:border-slate-500 focus-within:ring-2 focus-within:ring-slate-200 transition-all">
@@ -247,14 +248,14 @@ export default function WorkshopBoard({ userRole }) {
                     <>
                         <div className="flex gap-2">
                             <button onClick={() => setSelectedOrder(order)} className="flex-1 bg-white border border-gray-200 text-gray-700 hover:text-orange-600 text-xs py-2 rounded-lg font-bold transition shadow-sm" title="Ver Costos">
-                                💲 Costos
+                                Costos
                             </button>
                             <button onClick={() => setChecklistOrder(order)} className="flex-1 bg-white border border-gray-200 text-gray-700 hover:text-blue-600 text-xs py-2 rounded-lg font-bold transition shadow-sm" title="Ver Informe">
-                                📋 Informe
+                                Informe
                             </button>
                             {userRole === 'admin' && (
                                 <button onClick={() => handleStatusChange(order.id, 'en_proceso')} className="flex-1 bg-white border border-gray-200 text-red-600 hover:bg-red-50 text-xs py-2 rounded-lg font-bold transition shadow-sm" title="Reabrir">
-                                    🔙 Reabrir
+                                    Reabrir
                                 </button>
                             )}
                         </div>
@@ -274,7 +275,7 @@ export default function WorkshopBoard({ userRole }) {
                                 }`}
                                 title="Cargar Costos"
                             >
-                                💲
+                                $
                             </button>
 
                             <button 
@@ -286,7 +287,7 @@ export default function WorkshopBoard({ userRole }) {
                                 }`}
                                 title="Chequeo General"
                             >
-                                📋
+                                Check
                             </button>
 
                             {order.status === 'pendiente' ? (
@@ -294,7 +295,7 @@ export default function WorkshopBoard({ userRole }) {
                                 onClick={() => handleStatusChange(order.id, 'en_proceso')} 
                                 className="flex-1 bg-slate-700 text-white text-sm py-2 rounded-lg font-bold hover:bg-slate-800 transition shadow-sm animate-pulse"
                                 >
-                                ⚙️ Empezar
+                                Empezar
                                 </button>
                             ) : order.status !== 'finalizado' && (
                                 <button 
@@ -303,7 +304,7 @@ export default function WorkshopBoard({ userRole }) {
                                     userRole === 'admin' ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-600 hover:bg-slate-700' 
                                 }`}
                                 >
-                                {userRole === 'admin' ? '✅ Finalizar' : '📩 Solicitar Cierre'}
+                                {userRole === 'admin' ? 'Finalizar' : 'Solicitar Cierre'}
                                 </button>
                             )}
                         </div>
@@ -315,7 +316,6 @@ export default function WorkshopBoard({ userRole }) {
         </div>
       )}
 
-      {/* BOTÓN CARGAR MÁS */}
       {viewTab === 'finalizadas' && hasMore && filteredOrders.length > 0 && (
           <div className="mt-8 flex justify-center">
               <button 

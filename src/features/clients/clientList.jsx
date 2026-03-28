@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { getClients, createClient, deleteClient } from '../../services/clientService'
 import VehicleManager from '../vehicles/vehicleManager'
+import { useDebounce } from '../../hooks/useDebounce'
 import { Trash2, Car, UserPlus, Search, Phone, Mail, FileText, MessageCircle, User, X, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -12,40 +13,44 @@ export default function ClientList() {
   const [newClient, setNewClient] = useState({ name: '', lastname: '', phone: '', email: '', cuil: '' })
   const [selectedClient, setSelectedClient] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const debouncedSearchTerm = useDebounce(searchTerm, 300)
 
-  useEffect(() => { fetchClients() }, [])
-
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     try {
-      const data = await getClients()
+      const { data, error } = await getClients()
+      if (error) throw new Error(error)
       setClients(data)
     } catch (error) { 
-        console.error(error)
-        toast.error('Error al cargar clientes')
+      console.error(error)
+      toast.error('Error al cargar clientes')
     } finally { setLoading(false) }
-  }
+  }, [])
+
+  useEffect(() => { fetchClients() }, [fetchClients])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!newClient.name) return toast.error('El nombre es obligatorio')
     
-    await toast.promise(
-        createClient(newClient),
-        {
-            loading: 'Guardando cliente...',
-            success: '¡Cliente creado con éxito!',
-            error: 'Error al guardar.',
-        }
-    )
+    const { error } = await createClient(newClient)
+    if (error) {
+      toast.error('Error al guardar cliente')
+      return
+    }
     
+    toast.success('¡Cliente creado con éxito!')
     setNewClient({ name: '', lastname: '', phone: '', email: '', cuil: '' })
     setIsModalOpen(false)
     fetchClients()
   }
 
   const handleDelete = async (id) => {
-    if (window.confirm('⚠ ¿Estás seguro de borrar este cliente? Se borrarán sus autos también.')) {
-      await deleteClient(id)
+    if (window.confirm('¿Estás seguro de borrar este cliente? Se borrarán sus autos también.')) {
+      const { error } = await deleteClient(id)
+      if (error) {
+        toast.error('Error al eliminar cliente')
+        return
+      }
       toast.success('Cliente eliminado')
       fetchClients()
     }
@@ -59,25 +64,27 @@ export default function ClientList() {
     window.open(`https://wa.me/${num}`, '_blank')
   }
 
-  const filteredClients = clients.filter(c => {
-    const term = searchTerm.toLowerCase()
-    const fullName = `${c.name || ''} ${c.lastname || ''} ${c.full_name || ''}`.toLowerCase() 
-    return (
+  const filteredClients = useMemo(() => {
+    if (!debouncedSearchTerm) return clients
+    
+    const term = debouncedSearchTerm.toLowerCase()
+    return clients.filter(c => {
+      const fullName = `${c.name || ''} ${c.lastname || ''} ${c.full_name || ''}`.toLowerCase() 
+      return (
         fullName.includes(term) || 
         (c.phone && c.phone.includes(term)) ||
         (c.cuil && c.cuil.includes(term)) ||
         (c.email && c.email.toLowerCase().includes(term))
-    )
-  })
+      )
+    })
+  }, [clients, debouncedSearchTerm])
 
-  // Estilos
   const inputClasses = "w-full border border-gray-300 px-4 py-3 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none bg-gray-50 focus:bg-white transition text-gray-700"
   const labelClasses = "block text-xs font-bold text-gray-500 uppercase mb-1.5"
 
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto animate-fade-in pb-24"> 
       
-      {/* CABECERA */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
         <div>
             <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
@@ -105,41 +112,37 @@ export default function ClientList() {
         </div>
       </div>
 
-      {/* TABLA OPTIMIZADA PARA MÓVIL */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
             <table className="w-full text-left">
             <thead className="bg-gray-50 border-b border-gray-100 text-gray-500 text-xs uppercase font-bold tracking-wider">
                 <tr>
-                {/* En móvil esta columna ocupa casi todo */}
                 <th className="p-4">Cliente</th>
-                
-                {/* Ocultamos Contacto y Fiscal en móvil, los metemos dentro de Cliente */}
                 <th className="p-4 hidden md:table-cell">Contacto</th>
                 <th className="p-4 hidden lg:table-cell">Datos Fiscales</th>
-                
                 <th className="p-4 text-right">Acciones</th>
                 </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-                {filteredClients.length > 0 ? (
+                {loading ? (
+                  <tr>
+                    <td colSpan="4" className="p-12 text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto"></div>
+                    </td>
+                  </tr>
+                ) : filteredClients.length > 0 ? (
                     filteredClients.map((client) => (
                     <tr key={client.id} className="hover:bg-orange-50/50 transition group">
-                        
-                        {/* COLUMNA 1: NOMBRE + (INFO MÓVIL) */}
                         <td className="p-3 md:p-5">
                             <div className="flex items-center gap-3">
-                                {/* Avatar más chico en móvil */}
                                 <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold border border-slate-200 uppercase text-xs md:text-base shrink-0">
                                     {(client.name || client.full_name || '?').charAt(0)}
                                 </div>
-                                <div className="min-w-0"> {/* min-w-0 ayuda al truncate */}
+                                <div className="min-w-0">
                                     <p className="font-bold text-gray-800 text-sm md:text-lg capitalize truncate max-w-[140px] md:max-w-none leading-tight">
                                         {client.name} {client.lastname}
                                         {!client.name && client.full_name} 
                                     </p>
-                                    
-                                    {/* --- INFO EXTRA SOLO VISIBLE EN MÓVIL --- */}
                                     <div className="md:hidden mt-1 space-y-0.5">
                                         {client.phone && (
                                             <p className="text-xs text-gray-500 flex items-center gap-1">
@@ -150,12 +153,10 @@ export default function ClientList() {
                                             <p className="text-[10px] text-gray-400">CUIL: {client.cuil}</p>
                                         )}
                                     </div>
-                                    {/* -------------------------------------- */}
                                 </div>
                             </div>
                         </td>
 
-                        {/* COLUMNA 2: CONTACTO (Solo PC) */}
                         <td className="p-5 hidden md:table-cell">
                             <div className="flex flex-col gap-1.5">
                                 {client.phone ? (
@@ -177,7 +178,6 @@ export default function ClientList() {
                             </div>
                         </td>
 
-                        {/* COLUMNA 3: FISCAL (Solo PC Grande) */}
                         <td className="p-5 hidden lg:table-cell">
                             {client.cuil ? (
                                 <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg text-sm font-mono border border-gray-200 inline-flex items-center gap-2">
@@ -186,10 +186,8 @@ export default function ClientList() {
                             ) : <span className="text-gray-300 text-sm">-</span>}
                         </td>
 
-                        {/* COLUMNA 4: BOTONES */}
                         <td className="p-3 md:p-5 text-right">
                             <div className="flex justify-end gap-2">
-                                {/* Botón Autos Compacto en Móvil */}
                                 <button 
                                     onClick={() => setSelectedClient(client)} 
                                     className="bg-slate-800 text-white p-2 md:px-4 md:py-2 rounded-lg hover:bg-slate-700 font-medium text-sm flex items-center gap-2 shadow-md active:scale-95 transition"
@@ -198,7 +196,6 @@ export default function ClientList() {
                                     <Car size={16} /> <span className="hidden md:inline">Autos</span>
                                 </button>
                                 
-                                {/* Botón Borrar */}
                                 <button 
                                     onClick={() => handleDelete(client.id)} 
                                     className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition"
@@ -206,7 +203,6 @@ export default function ClientList() {
                                     <Trash2 size={18} />
                                 </button>
                                 
-                                {/* Botón WhatsApp Rápido (Solo Móvil) */}
                                 <button 
                                     onClick={() => handleWhatsApp(client.phone)} 
                                     className="md:hidden text-green-600 bg-green-50 p-2 rounded-lg"
@@ -229,7 +225,6 @@ export default function ClientList() {
         </div>
       </div>
 
-      {/* MODAL NUEVO CLIENTE (Igual que antes) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">

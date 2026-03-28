@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { loginUser } from '../../services/authService'
-import { Wrench, MessageCircle } from 'lucide-react' // <--- Importamos MessageCircle
+import { Wrench, MessageCircle, Eye, EyeOff, AlertCircle } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 export default function Login({ onLogin }) {
-  const [user, setUser] = useState('')
-  const [pass, setPass] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [remember, setRemember] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -15,17 +17,15 @@ export default function Login({ onLogin }) {
     setLoading(true)
 
     try {
-      const userData = await loginUser(user, pass)
-      
-      // --- CAMBIO DE SEGURIDAD ---
-      // Creamos una copia y borramos la contraseña antes de seguir
-      const usuarioSeguro = { ...userData }
-      delete usuarioSeguro.password 
-      // ---------------------------
+      if (!email || !password) {
+        throw new Error('Email y contraseña son obligatorios')
+      }
 
-      onLogin(usuarioSeguro, remember) 
+      const userData = await loginUser(email, password)
+      
+      onLogin(userData, remember) 
     } catch (err) {
-      setError('Credenciales inválidas.')
+      setError(err.message || 'Credenciales inválidas.')
     } finally {
       setLoading(false)
     }
@@ -44,25 +44,36 @@ export default function Login({ onLogin }) {
           <p className="text-gray-400 mt-2 text-sm font-medium">SISTEMA DE GESTIÓN</p>
         </div>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Usuario</label>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email</label>
             <input 
-              type="text" 
+              type="email" 
               className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition bg-gray-50 focus:bg-white"
-              value={user} onChange={(e) => setUser(e.target.value)}
-              placeholder="Tu usuario"
+              value={email} onChange={(e) => setEmail(e.target.value)}
+              placeholder="tu@email.com"
+              autoComplete="email"
             />
           </div>
           
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Contraseña</label>
-            <input 
-              type="password" 
-              className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition bg-gray-50 focus:bg-white"
-              value={pass} onChange={(e) => setPass(e.target.value)}
-              placeholder="•••••"
-            />
+            <div className="relative">
+              <input 
+                type={showPassword ? 'text' : 'password'} 
+                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition bg-gray-50 focus:bg-white pr-10"
+                value={password} onChange={(e) => setPassword(e.target.value)}
+                placeholder="•••••"
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center">
@@ -78,16 +89,29 @@ export default function Login({ onLogin }) {
             </label>
           </div>
 
-          {error && <p className="text-red-500 text-sm text-center font-bold bg-red-50 p-3 rounded border border-red-100">{error}</p>}
+          {error && (
+            <div className="flex items-center gap-2 text-red-500 text-sm text-center font-bold bg-red-50 p-3 rounded border border-red-100">
+              <AlertCircle size={16} />
+              {error}
+            </div>
+          )}
 
-          <button disabled={loading} className="w-full bg-orange-600 text-white py-3 rounded-lg font-bold hover:bg-orange-700 transition disabled:bg-gray-400 shadow-lg transform active:scale-95">
-            {loading ? 'Accediendo...' : 'INGRESAR AL SISTEMA'}
+          <button 
+            disabled={loading} 
+            className="w-full bg-orange-600 text-white py-3 rounded-lg font-bold hover:bg-orange-700 transition disabled:bg-gray-400 shadow-lg transform active:scale-95 flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                Verificando...
+              </>
+            ) : (
+              'INGRESAR AL SISTEMA'
+            )}
           </button>
         </form>
         
-        {/* --- PIE DE PAGINA CON SOPORTE --- */}
         <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-            {/* <p className="text-xs text-gray-400 mb-2">v2.1 - Versión Estable</p> */}
             <a 
                 href="https://wa.me/5493437479134?text=Hola,%20necesito%20ayuda%20para%20ingresar%20al%20sistema" 
                 target="_blank" 

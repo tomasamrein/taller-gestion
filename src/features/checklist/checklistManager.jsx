@@ -7,6 +7,16 @@ import toast from 'react-hot-toast'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 
+const TALLER_INFO = {
+  nombre: import.meta.env.VITE_TALLER_NOMBRE || 'SERVICIO MECÁNICO Y AUXILIO',
+  razon_social: import.meta.env.VITE_TALLER_RAZON_SOCIAL || 'Nombre del Taller',
+  cuit: import.meta.env.VITE_TALLER_CUIT || 'XX-XXXXXXXX-X',
+  direccion: import.meta.env.VITE_TALLER_DIRECCION || 'Dirección',
+  telefono: import.meta.env.VITE_TALLER_TELEFONO || 'XXX-XXX-XXXX',
+  email: import.meta.env.VITE_TALLER_EMAIL || 'email@taller.com',
+  logo_color: import.meta.env.VITE_TALLER_COLOR || '#ea580c'
+}
+
 export default function ChecklistManager({ orderId, order, onClose }) { 
   const [checklistData, setChecklistData] = useState({})
   const [extraData, setExtraData] = useState({})
@@ -19,22 +29,12 @@ export default function ChecklistManager({ orderId, order, onClose }) {
   const autoSaveTimerRef = useRef(null)
   const reportRef = useRef(null)
 
-  // --- DATOS DEL TALLER COMPLETOS ---
-  const TALLER_INFO = {
-    nombre: "SERVICIO MECÁNICO Y AUXILIO",
-    razon_social: "Emiliano Salomón",
-    cuit: "20-39456427-4", // <--- NUEVO
-    direccion: "Chaco 5785, Santa Fe",
-    telefono: "342-530-3133",
-    email: "emilianosalomon@email.com",
-    logo_color: "#ea580c"
-  }
-
-  useEffect(() => { loadData() }, [])
+  useEffect(() => { loadData() }, [orderId])
 
   const loadData = async () => {
     try {
-      const data = await getChecklistByOrderId(orderId)
+      const { data, error } = await getChecklistByOrderId(orderId)
+      if (error) throw new Error(error)
       if (data && data.values) {
         setChecklistData(data.values.status || {})
         setExtraData(data.values.extras || {})
@@ -52,20 +52,19 @@ export default function ChecklistManager({ orderId, order, onClose }) {
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     autoSaveTimerRef.current = setTimeout(async () => {
       setSaveStatus('saving')
-      try {
-        await saveChecklist({
-          order_id: orderId,
-          values: { status: checklistData, extras: extraData }
-        })
-        setSaveStatus('saved')
-      } catch (error) {
+      const { error } = await saveChecklist({
+        order_id: orderId,
+        values: { status: checklistData, extras: extraData }
+      })
+      if (error) {
         setSaveStatus('error')
+      } else {
+        setSaveStatus('saved')
       }
     }, 1500)
     return () => clearTimeout(autoSaveTimerRef.current)
-  }, [checklistData, extraData])
+  }, [checklistData, extraData, orderId, loading])
 
-  // --- PDF GENERATOR ---
   const generatePDFBlob = async () => {
     if (!reportRef.current) return null
     
@@ -137,15 +136,16 @@ export default function ChecklistManager({ orderId, order, onClose }) {
     }
   }
 
-  // --- ACTIONS ---
   const updateStatus = (itemName, statusValue) => {
     const key = `${itemName}_${mode}`
     setChecklistData(prev => ({ ...prev, [key]: statusValue }))
   }
+  
   const updateExtra = (itemName, value) => {
     const key = `${itemName}_${mode}`
     setExtraData(prev => ({ ...prev, [key]: value }))
   }
+  
   const markCategoryOK = (items) => {
     const updates = {}
     items.forEach(item => {
@@ -155,25 +155,25 @@ export default function ChecklistManager({ orderId, order, onClose }) {
     setChecklistData(prev => ({ ...prev, ...updates }))
     toast.success('Categoría completada')
   }
+  
   const addToBudget = async (itemName) => {
     const priceInput = window.prompt(`Precio estimado para: ${itemName}`, "0")
     if (priceInput === null) return 
     const toastId = toast.loading('Agregando...')
-    try {
-        await addOrderItem({
-            order_id: orderId,
-            description: `Reparación: ${itemName}`,
-            unit_price: Number(priceInput) || 0,
-            quantity: 1,
-            item_type: 'repuesto'
-        })
-        toast.success(`Agregado`, { id: toastId })
-    } catch (error) {
+    const { error } = await addOrderItem({
+        order_id: orderId,
+        description: `Reparación: ${itemName}`,
+        unit_price: Number(priceInput) || 0,
+        quantity: 1,
+        item_type: 'repuesto'
+    })
+    if (error) {
         toast.error('Error', { id: toastId })
+    } else {
+        toast.success('Agregado', { id: toastId })
     }
   }
 
-  // --- UI RENDER ---
   const renderSpecialInput = (item) => {
     const key = `${item.name}_${mode}`
     const value = extraData[key] || ''
@@ -226,14 +226,14 @@ export default function ChecklistManager({ orderId, order, onClose }) {
   return (
     <div className="fixed inset-0 bg-white z-50 flex flex-col animate-fade-in">
       
-      {/* HEADER APP */}
       <div className="bg-slate-900 text-white p-3 shadow-md z-10 shrink-0">
         <div className="flex justify-between items-center mb-3">
             <div>
                 <h2 className="text-lg font-bold flex items-center gap-2">
-                   📋 Chequeo
+                   Chequeo
                    {saveStatus === 'saving' && <span className="text-xs font-normal text-orange-400 animate-pulse">Guardando...</span>}
                    {saveStatus === 'saved' && <span className="text-xs font-normal text-green-400">Guardado</span>}
+                   {saveStatus === 'error' && <span className="text-xs font-normal text-red-400">Error al guardar</span>}
                 </h2>
                 <p className="text-xs text-gray-400">Orden #{orderId}</p>
             </div>
@@ -248,12 +248,11 @@ export default function ChecklistManager({ orderId, order, onClose }) {
             </div>
         </div>
         <div className="bg-slate-800 p-1 rounded-lg flex gap-1">
-            <button onClick={() => setMode('entrada')} className={`flex-1 py-1.5 rounded-md font-bold text-sm flex items-center justify-center gap-2 transition ${mode === 'entrada' ? 'bg-orange-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>📥 Ingreso</button>
-            <button onClick={() => setMode('salida')} className={`flex-1 py-1.5 rounded-md font-bold text-sm flex items-center justify-center gap-2 transition ${mode === 'salida' ? 'bg-green-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>📤 Egreso</button>
+            <button onClick={() => setMode('entrada')} className={`flex-1 py-1.5 rounded-md font-bold text-sm flex items-center justify-center gap-2 transition ${mode === 'entrada' ? 'bg-orange-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>Ingreso</button>
+            <button onClick={() => setMode('salida')} className={`flex-1 py-1.5 rounded-md font-bold text-sm flex items-center justify-center gap-2 transition ${mode === 'salida' ? 'bg-green-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>Egreso</button>
         </div>
       </div>
 
-      {/* BODY (UI) */}
       <div className="flex-1 overflow-y-auto bg-gray-50 p-3 space-y-3 pb-20">
         {loading ? <div className="text-center p-10 text-gray-400">Cargando chequeo...</div> : 
          CHECKLIST_CATEGORIES.map(cat => {
@@ -304,16 +303,13 @@ export default function ChecklistManager({ orderId, order, onClose }) {
         })}
       </div>
 
-      {/* --- INFORME FANTASMA (PDF) --- */}
       <div style={{ position: 'absolute', top: 0, left: '-9999px', width: '210mm', minHeight: 'auto', background: 'white' }}>
          <div ref={reportRef} id="report-content" className="p-10 font-sans text-slate-800" style={{ width: '100%', minHeight: '297mm', background: 'white' }}>
             
-            {/* CABECERA */}
             <div className="border-b-4 border-slate-800 pb-4 mb-6 flex justify-between items-start">
                 <div>
                     <h1 className="text-3xl font-black uppercase tracking-tight text-slate-900 mb-1 leading-normal">{TALLER_INFO.nombre}</h1>
                     <p className="text-sm font-bold text-gray-700">{TALLER_INFO.razon_social}</p>
-                    {/* CUIT AGREGADO AQUI */}
                     <p className="text-sm text-gray-500">CUIT: {TALLER_INFO.cuit}</p>
                     <p className="text-sm text-gray-500">{TALLER_INFO.direccion}</p>
                     <p className="text-sm text-gray-500">{TALLER_INFO.telefono}</p>
@@ -325,7 +321,6 @@ export default function ChecklistManager({ orderId, order, onClose }) {
                 </div>
             </div>
 
-            {/* DATOS CLIENTE */}
             {order && (
             <div className="bg-gray-100 p-4 rounded-lg mb-6 flex gap-6 text-sm border border-gray-200">
                 <div className="flex-1">
@@ -344,7 +339,6 @@ export default function ChecklistManager({ orderId, order, onClose }) {
             </div>
             )}
 
-            {/* GRILLA PDF */}
             <div className="flex flex-wrap -mx-4">
                 {CHECKLIST_CATEGORIES.map(cat => (
                     <div key={cat.id} className="w-1/2 px-4 mb-6 break-inside-avoid">
@@ -369,19 +363,14 @@ export default function ChecklistManager({ orderId, order, onClose }) {
 
                                 return (
                                     <div key={item.name} className="flex items-center justify-between border-b border-gray-100 py-1 min-h-[28px]">
-                                        
-                                        {/* NOMBRE */}
                                         <div className="w-[60%] pr-1 flex items-center">
                                             <span className="text-[10px] text-gray-700 font-medium leading-tight block">
                                                 {item.name}
                                             </span>
                                         </div>
-                                        
-                                        {/* CAJA DE DATOS CON FIX DE ALINEACIÓN */}
                                         <div className="w-[40%] flex justify-end items-center gap-2">
                                             {extra && (
                                                 <div className="flex items-center justify-center bg-slate-50 border border-slate-200 rounded px-2 h-5 w-fit">
-                                                    {/* Margen negativo para empujar el texto hacia arriba y compensar PDF */}
                                                     <span className="text-[9px] font-bold text-slate-600 text-center block mb-[2px]">
                                                         {extra} {item.unit}
                                                     </span>
@@ -391,7 +380,6 @@ export default function ChecklistManager({ orderId, order, onClose }) {
                                                 {statusIcon}
                                             </span>
                                         </div>
-
                                     </div>
                                 )
                             })}

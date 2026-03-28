@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { getInventory, createProduct, deleteProduct, updateProductStock } from '../../services/inventoryService'
-import { Package, Plus, Search, Trash2, AlertTriangle, Save } from 'lucide-react'
+import { useDebounce } from '../../hooks/useDebounce'
+import { Package, Plus, Search, Trash2, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function Inventory() {
@@ -8,50 +9,65 @@ export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState('')
   const [newProd, setNewProd] = useState({ name: '', stock: '', price: '', min_stock: '' })
   const [loading, setLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const debouncedSearchTerm = useDebounce(searchTerm, 300)
 
-  useEffect(() => { load() }, [])
-
-  const load = async () => {
-    const data = await getInventory()
+  const load = useCallback(async () => {
+    const { data, error } = await getInventory()
+    if (error) {
+      toast.error('Error al cargar inventario')
+      return
+    }
     setProducts(data)
-  }
+    setInitialLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
 
   const handleCreate = async (e) => {
     e.preventDefault()
     if (!newProd.name || !newProd.price) return toast.error('Nombre y Precio obligatorios')
 
     setLoading(true)
-    try {
-        await createProduct(newProd)
-        toast.success('Producto agregado 📦')
-        setNewProd({ name: '', stock: '', price: '', min_stock: '' }) // Limpiar form
-        load() // Recargar lista
-    } catch (error) {
-        console.error(error)
-        toast.error('Error al crear producto')
-    } finally {
-        setLoading(false)
+    const { error } = await createProduct(newProd)
+    
+    if (error) {
+      toast.error('Error al crear producto')
+    } else {
+      toast.success('Producto agregado')
+      setNewProd({ name: '', stock: '', price: '', min_stock: '' })
+      load()
     }
+    setLoading(false)
   }
 
   const handleDelete = async (id) => {
     if (confirm('¿Borrar este producto?')) {
-        await deleteProduct(id)
-        toast.success('Producto eliminado')
-        load()
+      const { error } = await deleteProduct(id)
+      if (error) {
+        toast.error('Error al eliminar producto')
+        return
+      }
+      toast.success('Producto eliminado')
+      load()
     }
   }
 
   const handleStockChange = async (id, currentStock, change) => {
     const newStock = Math.max(0, currentStock + change)
-    await updateProductStock(id, newStock)
+    const { error } = await updateProductStock(id, newStock)
+    if (error) {
+      toast.error('Error al actualizar stock')
+      return
+    }
     load()
   }
 
-  // Filtramos por buscador
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredProducts = useMemo(() => {
+    if (!debouncedSearchTerm) return products
+    const term = debouncedSearchTerm.toLowerCase()
+    return products.filter(p => p.name.toLowerCase().includes(term))
+  }, [products, debouncedSearchTerm])
 
   return (
     <div className="p-4 lg:p-6 max-w-6xl mx-auto animate-fade-in">
@@ -61,7 +77,6 @@ export default function Inventory() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        {/* FORMULARIO DE CARGA */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-orange-100 h-fit">
             <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2">
                 <Plus size={18} className="text-orange-600"/> Nuevo Producto
@@ -92,9 +107,7 @@ export default function Inventory() {
             </form>
         </div>
 
-        {/* LISTA DE PRODUCTOS */}
         <div className="md:col-span-2 space-y-4">
-            {/* Buscador */}
             <div className="relative">
                 <Search className="absolute left-3 top-3 text-gray-400" size={20} />
                 <input 
@@ -117,34 +130,41 @@ export default function Inventory() {
                             </tr>
                         </thead>
                         <tbody className="divide-y">
-                            {filteredProducts.map(p => (
-                                <tr key={p.id} className="hover:bg-orange-50 transition group">
-                                    <td className="p-4">
-                                        <p className="font-bold text-gray-800">{p.name}</p>
-                                        {p.stock <= p.min_stock && (
-                                            <span className="text-[10px] font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full flex items-center gap-1 w-fit mt-1">
-                                                <AlertTriangle size={10} /> Stock Bajo
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="p-4 text-center">
-                                        <div className="flex items-center justify-center gap-2">
-                                            <button onClick={() => handleStockChange(p.id, p.stock, -1)} className="w-6 h-6 bg-gray-100 rounded text-gray-600 hover:bg-red-100 hover:text-red-600 font-bold">-</button>
-                                            <span className={`font-mono font-bold w-8 text-center ${p.stock <= p.min_stock ? 'text-red-600' : 'text-slate-700'}`}>{p.stock}</span>
-                                            <button onClick={() => handleStockChange(p.id, p.stock, 1)} className="w-6 h-6 bg-gray-100 rounded text-gray-600 hover:bg-green-100 hover:text-green-600 font-bold">+</button>
-                                        </div>
-                                    </td>
-                                    <td className="p-4 text-right font-bold text-slate-600">
-                                        ${p.price.toLocaleString()}
-                                    </td>
-                                    <td className="p-4 text-center">
-                                        <button onClick={() => handleDelete(p.id)} className="text-gray-300 hover:text-red-500 transition">
-                                            <Trash2 size={18} />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                            {filteredProducts.length === 0 && (
+                            {initialLoading ? (
+                              <tr>
+                                <td colSpan="4" className="p-8 text-center">
+                                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto"></div>
+                                </td>
+                              </tr>
+                            ) : filteredProducts.length > 0 ? (
+                                filteredProducts.map(p => (
+                                    <tr key={p.id} className="hover:bg-orange-50 transition group">
+                                        <td className="p-4">
+                                            <p className="font-bold text-gray-800">{p.name}</p>
+                                            {p.stock <= p.min_stock && (
+                                                <span className="text-[10px] font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full flex items-center gap-1 w-fit mt-1">
+                                                    <AlertTriangle size={10} /> Stock Bajo
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <div className="flex items-center justify-center gap-2">
+                                                <button onClick={() => handleStockChange(p.id, p.stock, -1)} className="w-6 h-6 bg-gray-100 rounded text-gray-600 hover:bg-red-100 hover:text-red-600 font-bold">-</button>
+                                                <span className={`font-mono font-bold w-8 text-center ${p.stock <= p.min_stock ? 'text-red-600' : 'text-slate-700'}`}>{p.stock}</span>
+                                                <button onClick={() => handleStockChange(p.id, p.stock, 1)} className="w-6 h-6 bg-gray-100 rounded text-gray-600 hover:bg-green-100 hover:text-green-600 font-bold">+</button>
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-right font-bold text-slate-600">
+                                            ${Number(p.price).toLocaleString()}
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <button onClick={() => handleDelete(p.id)} className="text-gray-300 hover:text-red-500 transition">
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
                                 <tr>
                                     <td colSpan="4" className="p-8 text-center text-gray-400">No se encontraron productos.</td>
                                 </tr>

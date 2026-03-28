@@ -5,78 +5,86 @@ import toast from 'react-hot-toast'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 
+const TALLER_INFO = {
+  nombre: import.meta.env.VITE_TALLER_NOMBRE || 'SERVICIO MECÁNICO Y AUXILIO',
+  razon_social: import.meta.env.VITE_TALLER_RAZON_SOCIAL || 'Nombre del Taller',
+  direccion: import.meta.env.VITE_TALLER_DIRECCION || 'Dirección',
+  telefono: import.meta.env.VITE_TALLER_TELEFONO || 'XXX-XXX-XXXX',
+  email: import.meta.env.VITE_TALLER_EMAIL || 'email@taller.com',
+  cuit: import.meta.env.VITE_TALLER_CUIT || 'XX-XXXXXXXX-X',
+  logo_color: import.meta.env.VITE_TALLER_COLOR || '#ea580c'
+}
+
 export default function OrderBilling({ order, onClose }) {
   const [items, setItems] = useState([])
   const [newItem, setNewItem] = useState({ description: '', unit_price: '', quantity: 1, item_type: 'repuesto' })
   const [loading, setLoading] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   
-  // Estado para Edición
   const [editingId, setEditingId] = useState(null)
   const [editValues, setEditValues] = useState({})
 
   const invoiceRef = useRef(null)
-  
-  // --- DATOS DEL TALLER ACTUALIZADOS ---
-  const TALLER_INFO = {
-    nombre: "SERVICIO MECÁNICO Y AUXILIO", // Nombre actualizado
-    direccion: "Chaco 5785, Santa Fe",     // Dirección actualizada
-    telefono: "342-530-3133",              // Teléfono actualizado
-    email: "emilianosalomon@email.com",    // Email placeholder (ajustar si tienes el real)
-    cuit: "20-39456427-4",                 // CUIT actualizado
-    razon_social: "Emiliano Salomón (Monotributista)", // Razón social agregada para uso interno si se requiere
-    logo_color: "#ea580c"
-  }
-
-  useEffect(() => { loadItems() }, [])
 
   const loadItems = async () => {
-    const data = await getOrderItems(order.id)
-    // Ordenamos: Primero Mano de Obra, despues Repuestos (Opcional, queda prolijo)
-    const sorted = data.sort((a, b) => a.item_type.localeCompare(b.item_type))
+    const { data, error } = await getOrderItems(order.id)
+    if (error) {
+      toast.error('Error al cargar items')
+      return
+    }
+    const sorted = (data || []).sort((a, b) => a.item_type.localeCompare(b.item_type))
     setItems(sorted)
   }
+
+  useEffect(() => { loadItems() }, [order.id])
 
   const handleAdd = async (e) => {
     e.preventDefault()
     if (!newItem.description || !newItem.unit_price) return
     setLoading(true)
-    await addOrderItem({ ...newItem, order_id: order.id })
-    setNewItem({ description: '', unit_price: '', quantity: 1, item_type: 'repuesto' }) 
-    await loadItems()
+    
+    const { error } = await addOrderItem({ ...newItem, order_id: order.id })
+    if (error) {
+      toast.error('Error al agregar item')
+    } else {
+      setNewItem({ description: '', unit_price: '', quantity: 1, item_type: 'repuesto' })
+      loadItems()
+    }
     setLoading(false)
   }
 
   const handleDelete = async (id) => {
     if(!window.confirm('¿Borrar item?')) return
-    await deleteOrderItem(id)
+    const { error } = await deleteOrderItem(id)
+    if (error) {
+      toast.error('Error al eliminar')
+      return
+    }
     loadItems()
   }
 
-  // --- LÓGICA DE EDICIÓN ---
   const startEdit = (item) => {
     setEditingId(item.id)
     setEditValues(item)
   }
 
   const saveEdit = async () => {
-    try {
-        await updateOrderItem(editingId, {
-            description: editValues.description,
-            unit_price: editValues.unit_price,
-            item_type: editValues.item_type
-        })
-        setEditingId(null)
-        loadItems()
-        toast.success('Actualizado')
-    } catch (e) {
-        toast.error('Error al editar')
+    const { error } = await updateOrderItem(editingId, {
+        description: editValues.description,
+        unit_price: editValues.unit_price,
+        item_type: editValues.item_type
+    })
+    if (error) {
+      toast.error('Error al editar')
+      return
     }
+    setEditingId(null)
+    loadItems()
+    toast.success('Actualizado')
   }
 
-  const totalOrden = items.reduce((acc, item) => acc + (item.unit_price * item.quantity), 0)
+  const totalOrden = items.reduce((acc, item) => acc + (Number(item.unit_price) * Number(item.quantity)), 0)
 
-  // ... (FUNCIONES DE PDF Y WHATSAPP) ...
   const generatePDFBlob = async () => {
     if (!invoiceRef.current) return null
     const canvas = await html2canvas(invoiceRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' })
@@ -104,7 +112,7 @@ export default function OrderBilling({ order, onClose }) {
           title: `Presupuesto Taller - Orden #${order.id}`,
           text: `Hola ${order.vehicles?.clients?.name || ''}, acá te adjunto el presupuesto.`
         })
-        toast.success('¡Listo! Elegí WhatsApp', { id: toastId })
+        toast.success('Listo!', { id: toastId })
       } else {
         pdf.save(fileName)
         toast.success('Descargado', { id: toastId })
@@ -145,7 +153,6 @@ export default function OrderBilling({ order, onClose }) {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
         
-        {/* HEADER */}
         <div className="bg-slate-900 text-white p-3 flex flex-col gap-3 border-b-4 border-orange-500 shrink-0">
           <div className="flex justify-between items-start">
               <div>
@@ -157,7 +164,6 @@ export default function OrderBilling({ order, onClose }) {
               <button onClick={onClose} className="text-gray-400 hover:text-white px-2 rounded"><X size={24}/></button>
           </div>
 
-          {/* BOTONERA ACCIONES */}
           <div className="flex gap-2">
             <button onClick={handleShareWhatsApp} disabled={isGenerating} className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition shadow disabled:opacity-50">
               {isGenerating ? '...' : <><Share2 size={16} /> Enviar PDF</>}
@@ -171,7 +177,6 @@ export default function OrderBilling({ order, onClose }) {
           </div>
         </div>
 
-        {/* LISTA DE ITEMS (SCROLLABLE) */}
         <div className="p-4 flex-1 overflow-y-auto bg-gray-50">
           <div className="space-y-3 mb-6">
              {items.length === 0 ? <p className="text-gray-400 text-center py-8 italic border-2 border-dashed border-gray-200 rounded-lg">No hay costos cargados.</p> : 
@@ -179,7 +184,6 @@ export default function OrderBilling({ order, onClose }) {
                 <div key={item.id} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm flex flex-col gap-2">
                   
                   {editingId === item.id ? (
-                      // --- MODO EDICIÓN ---
                       <div className="flex flex-col gap-2 animate-fade-in">
                           <div className="flex gap-2">
                               <select 
@@ -208,7 +212,6 @@ export default function OrderBilling({ order, onClose }) {
                           </div>
                       </div>
                   ) : (
-                      // --- MODO VISUALIZACIÓN ---
                       <div className="flex justify-between items-center">
                         <div className="flex items-start gap-3">
                             <div className={`p-2 rounded-full ${item.item_type === 'mano_obra' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>
@@ -217,12 +220,12 @@ export default function OrderBilling({ order, onClose }) {
                             <div>
                                 <p className="font-bold text-gray-800 text-sm leading-tight">{item.description}</p>
                                 <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-0.5">
-                                    {item.item_type.replace('_', ' ')}
+                                    {item.item_type?.replace('_', ' ')}
                                 </p>
                             </div>
                         </div>
                         <div className="flex flex-col items-end gap-1">
-                            <span className="font-bold text-gray-800 font-mono text-lg">${(item.unit_price * item.quantity).toLocaleString()}</span>
+                            <span className="font-bold text-gray-800 font-mono text-lg">${(Number(item.unit_price) * Number(item.quantity)).toLocaleString()}</span>
                             <div className="flex gap-1">
                                 <button onClick={() => startEdit(item)} className="text-gray-400 hover:text-blue-500 p-1"><Edit2 size={14}/></button>
                                 <button onClick={() => handleDelete(item.id)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 size={14}/></button>
@@ -235,7 +238,6 @@ export default function OrderBilling({ order, onClose }) {
           </div>
         </div>
 
-        {/* FOOTER FIJO (TOTAL + AGREGAR) */}
         <div className="bg-white border-t p-4 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-10">
             <div className="flex justify-between items-center mb-4 px-2">
                 <span className="text-slate-500 font-bold uppercase text-xs tracking-wider">Total Presupuestado</span>
@@ -278,11 +280,9 @@ export default function OrderBilling({ order, onClose }) {
         </div>
       </div>
 
-      {/* --- FACTURA FANTASMA (PARA EL PDF) --- */}
       <div style={{ position: 'absolute', top: 0, left: '-9999px', width: '210mm', minHeight: '297mm', background: 'white' }}>
          <div ref={invoiceRef} className="p-12 text-slate-800 font-sans" style={{ width: '100%' }}>
             
-            {/* CABECERA CON DATOS ACTUALIZADOS DEL CLIENTE */}
             <div className="flex justify-between border-b-4 border-orange-500 pb-6 mb-8">
                 <div>
                     <h1 className="text-3xl font-black uppercase tracking-tight">{TALLER_INFO.nombre}</h1>
@@ -315,7 +315,6 @@ export default function OrderBilling({ order, onClose }) {
                 </div>
             </div>
 
-            {/* TABLA MEJORADA EN EL PDF */}
             <table className="w-full mb-10">
                 <thead className="bg-slate-900 text-white text-xs uppercase tracking-wider">
                     <tr>
@@ -329,9 +328,9 @@ export default function OrderBilling({ order, onClose }) {
                     {items.map((item, idx) => (
                         <tr key={idx} className="border-b border-gray-100">
                             <td className="py-4 px-6 font-medium">{item.description}</td>
-                            <td className="py-4 px-6 text-center text-xs uppercase font-bold text-gray-400">{item.item_type.replace('_', ' ')}</td>
+                            <td className="py-4 px-6 text-center text-xs uppercase font-bold text-gray-400">{item.item_type?.replace('_', ' ')}</td>
                             <td className="py-4 px-6 text-right">${Number(item.unit_price).toLocaleString()}</td>
-                            <td className="py-4 px-6 text-right font-bold text-slate-900">${(item.unit_price * item.quantity).toLocaleString()}</td>
+                            <td className="py-4 px-6 text-right font-bold text-slate-900">${(Number(item.unit_price) * Number(item.quantity)).toLocaleString()}</td>
                         </tr>
                     ))}
                 </tbody>
