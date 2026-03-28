@@ -4,8 +4,29 @@ import { getActiveOrders, updateOrderStatus, getFinishedOrdersWithItems } from '
 import OrderBilling from './orderBilling'
 import ChecklistManager from '../checklist/checklistManager' 
 import { useDebounce } from '../../hooks/useDebounce'
-import { Wrench, Calendar, MessageCircle, ArrowRight, Car, Lock, History, PlayCircle, Search } from 'lucide-react'
+import { Wrench, Calendar, MessageCircle, ArrowRight, Car, Lock, History, PlayCircle, Search, Clock, AlertTriangle, Gauge } from 'lucide-react'
 import toast from 'react-hot-toast'
+
+const getTimeAgo = (dateString) => {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now - date
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffMins = Math.floor(diffMs / (1000 * 60))
+
+  if (diffDays > 0) return `${diffDays}d`
+  if (diffHours > 0) return `${diffHours}h`
+  if (diffMins > 0) return `${diffMins}m`
+  return 'Ahora'
+}
+
+const isStale = (dateString, thresholdDays = 5) => {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24))
+  return diffDays > thresholdDays
+}
 
 export default function WorkshopBoard({ userRole }) {
   const [orders, setOrders] = useState([])
@@ -19,6 +40,7 @@ export default function WorkshopBoard({ userRole }) {
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [staleOrders, setStaleOrders] = useState([])
 
   const loadOrders = useCallback(async (currentPage = page, isReset = false) => {
     if (isReset) setLoading(true)
@@ -28,7 +50,15 @@ export default function WorkshopBoard({ userRole }) {
       if (viewTab === 'activas') {
         const { data, error } = await getActiveOrders()
         if (error) throw new Error(error)
-        setOrders(data)
+        
+        const stale = (data || []).filter(o => isStale(o.updated_at || o.created_at))
+        setStaleOrders(stale)
+        
+        if (stale.length > 0) {
+          toast.warning(`${stale.length} orden${stale.length > 1 ? 'es' : ''} lleva${stale.length === 1 ? '' : 'n'} más de 5 días sin actualizar`, { duration: 5000 })
+        }
+        
+        setOrders(data || [])
       } else {
         const { data, error } = await getFinishedOrdersWithItems(currentPage, 30)
         if (error) throw new Error(error)
@@ -52,6 +82,7 @@ export default function WorkshopBoard({ userRole }) {
       setPage(0)
       setHasMore(true)
       setSearchTerm('')
+      setStaleOrders([])
       loadOrders(0, true) 
   }, [viewTab])
 
@@ -112,23 +143,29 @@ export default function WorkshopBoard({ userRole }) {
   }
 
   const filteredOrders = useMemo(() => {
-    if (viewTab === 'activas' || !debouncedSearchTerm) return orders
+    if (!debouncedSearchTerm) return orders
     
     const term = debouncedSearchTerm.toLowerCase()
     return orders.filter(order => {
       const clientName = order.vehicles?.clients?.full_name?.toLowerCase() || ''
       const patent = order.vehicles?.patent?.toLowerCase() || ''
       const vehicleInfo = `${order.vehicles?.brand} ${order.vehicles?.model}`.toLowerCase()
+      const km = order.km ? String(order.km) : ''
       
-      return clientName.includes(term) || patent.includes(term) || vehicleInfo.includes(term)
+      return clientName.includes(term) || patent.includes(term) || vehicleInfo.includes(term) || km.includes(term)
     })
-  }, [orders, viewTab, debouncedSearchTerm])
+  }, [orders, debouncedSearchTerm])
 
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
             <Wrench className="text-orange-600" /> Tablero de Taller
+            {staleOrders.length > 0 && (
+              <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                <AlertTriangle size={14} /> {staleOrders.length} estancada{staleOrders.length > 1 ? 's' : ''}
+              </span>
+            )}
           </h1>
           
           <div className="bg-white p-1 rounded-xl border border-gray-200 shadow-sm flex w-full md:w-auto">
@@ -136,7 +173,7 @@ export default function WorkshopBoard({ userRole }) {
                 onClick={() => setViewTab('activas')}
                 className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${viewTab === 'activas' ? 'bg-orange-600 text-white shadow' : 'text-gray-500 hover:bg-gray-100'}`}
              >
-                <PlayCircle size={16}/> Activas
+                <PlayCircle size={16}/> Activas <span className="bg-white/20 px-1.5 rounded text-xs ml-1">{orders.length}</span>
              </button>
              <button 
                 onClick={() => setViewTab('finalizadas')}
@@ -147,23 +184,21 @@ export default function WorkshopBoard({ userRole }) {
           </div>
       </div>
 
-      {viewTab === 'finalizadas' && (
-          <div className="mb-6 animate-fade-in relative max-w-md">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex items-center p-2 focus-within:border-slate-500 focus-within:ring-2 focus-within:ring-slate-200 transition-all">
-                  <Search className="text-gray-400 ml-2 shrink-0" size={20} />
-                  <input
-                      type="text"
-                      placeholder="Buscar por cliente, vehículo o patente..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-3 pr-4 py-1 outline-none text-sm text-gray-700 bg-transparent"
-                  />
-                  {searchTerm && (
-                      <button onClick={() => setSearchTerm('')} className="text-gray-400 hover:text-gray-600 mr-2 bg-gray-100 rounded-full p-1">✕</button>
-                  )}
-              </div>
+      <div className="mb-6 animate-fade-in relative max-w-md">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex items-center p-2 focus-within:border-slate-500 focus-within:ring-2 focus-within:ring-slate-200 transition-all">
+              <Search className="text-gray-400 ml-2 shrink-0" size={20} />
+              <input
+                  type="text"
+                  placeholder={viewTab === 'activas' ? "Buscar por cliente, patente o km..." : "Buscar por cliente, vehículo o patente..."}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-3 pr-4 py-1 outline-none text-sm text-gray-700 bg-transparent"
+              />
+              {searchTerm && (
+                  <button onClick={() => setSearchTerm('')} className="text-gray-400 hover:text-gray-600 mr-2 bg-gray-100 rounded-full p-1">✕</button>
+              )}
           </div>
-      )}
+      </div>
 
       {loading ? (
         <div className="text-center py-20">
@@ -194,11 +229,19 @@ export default function WorkshopBoard({ userRole }) {
           {filteredOrders.map(order => {
             const isPending = order.status === 'pendiente'
             const isFinished = order.status === 'finalizado'
+            const isStaleOrder = isStale(order.updated_at || order.created_at)
+            const timeAgo = getTimeAgo(order.updated_at || order.created_at)
             
             return (
-            <div key={order.id} className={`bg-white rounded-xl shadow-sm border overflow-hidden flex flex-col relative transition hover:shadow-md ${isFinished ? 'border-gray-200 opacity-95 hover:opacity-100' : 'border-gray-200 hover:border-orange-300'} group`}>
+            <div key={order.id} className={`bg-white rounded-xl shadow-sm border overflow-hidden flex flex-col relative transition hover:shadow-md ${isFinished ? 'border-gray-200 opacity-95 hover:opacity-100' : isStaleOrder ? 'border-red-300 ring-1 ring-red-200' : 'border-gray-200 hover:border-orange-300'} group`}>
               
-              <div className={`p-4 border-b transition-colors ${isFinished ? 'bg-gray-100' : 'bg-gray-50 group-hover:bg-orange-50'}`}>
+              {isStaleOrder && !isFinished && (
+                <div className="absolute top-2 right-2 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 z-10">
+                  <AlertTriangle size={12} /> Estancado
+                </div>
+              )}
+               
+              <div className={`p-4 border-b transition-colors ${isFinished ? 'bg-gray-100' : isStaleOrder ? 'bg-red-50' : 'bg-gray-50 group-hover:bg-orange-50'}`}>
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <h3 className="font-bold text-lg text-gray-800 leading-tight">
@@ -207,10 +250,22 @@ export default function WorkshopBoard({ userRole }) {
                     <p className="text-xs font-bold text-gray-500 font-mono mt-1 bg-white inline-block px-1 rounded border">
                       {order.vehicles?.patent}
                     </p>
+                    {order.km && (
+                      <p className="text-xs text-blue-600 font-bold mt-1 flex items-center gap-1">
+                        <Gauge size={12} /> {Number(order.km).toLocaleString()} km
+                      </p>
+                    )}
                   </div>
-                  <span className={`px-2 py-1 rounded text-[10px] font-bold border uppercase tracking-wide ${getStatusStyle(order.status)}`}>
-                    {order.status.replace('_', ' ')}
-                  </span>
+                  <div className="text-right">
+                    <span className={`px-2 py-1 rounded text-[10px] font-bold border uppercase tracking-wide ${getStatusStyle(order.status)}`}>
+                      {order.status.replace('_', ' ')}
+                    </span>
+                    {!isFinished && (
+                      <p className="text-[10px] text-gray-400 font-bold mt-1 flex items-center justify-end gap-1">
+                        <Clock size={10} /> {timeAgo}
+                      </p>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="flex items-center gap-2 mt-3 text-sm text-gray-600">
@@ -232,7 +287,7 @@ export default function WorkshopBoard({ userRole }) {
                   {isFinished && order.delivery_date && (
                       <div className="flex items-center gap-2 text-green-600 font-medium">
                         <ArrowRight size={12} />
-                        <span>Entregado: {new Date(order.delivery_date).toLocaleDateString()} {new Date(order.delivery_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}hs</span>
+                        <span>Entregado: {new Date(order.delivery_date).toLocaleDateString()}</span>
                       </div>
                   )}
                 </div>

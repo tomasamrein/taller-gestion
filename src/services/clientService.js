@@ -53,3 +53,38 @@ export const deleteClient = async (id) => {
     return { error: error.message }
   }
 }
+
+export const updateClient = async (id, updates) => {
+  try {
+    const payload = {
+      ...updates,
+      full_name: `${updates.name || ''} ${updates.lastname || ''}`.trim()
+    }
+
+    const { error } = await supabase
+      .from('clients')
+      .update(payload)
+      .eq('id', id)
+
+    if (error) throw error
+    return { error: null }
+  } catch (error) {
+    console.error('Error updating client:', error.message)
+    return { error: error.message }
+  }
+}
+
+export const getClientVehicles = async (clientId) => {
+  try {
+    const { data, error } = await supabase
+      .from('vehicles')
+      .select('*')
+      .eq('client_id', clientId)
+
+    if (error) throw error
+    return { data: data || [], error: null }
+  } catch (error) {
+    console.error('Error fetching client vehicles:', error.message)
+    return { data: [], error: error.message }
+  }
+}

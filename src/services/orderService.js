@@ -54,12 +54,22 @@ export const getFinishedOrdersWithItems = async (page = null, limit = 30) => {
 
 export const createOrder = async (order) => {
   try {
+    const payload = {
+      vehicle_id: order.vehicle_id,
+      description: order.description,
+      status: 'pendiente'
+    }
+    
+    if (order.km) {
+      payload.km = Number(order.km)
+    }
+    
+    if (order.notes) {
+      payload.internal_notes = order.notes
+    }
+
     const { data, error } = await supabase.from('work_orders')
-      .insert([{
-        vehicle_id: order.vehicle_id,
-        description: order.description,
-        status: 'pendiente' 
-      }])
+      .insert([payload])
       .select() 
     
     if (error) throw error
