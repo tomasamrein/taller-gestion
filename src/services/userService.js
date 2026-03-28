@@ -5,6 +5,7 @@ export const getUsers = async () => {
     const { data, error } = await supabase
       .from('users')
       .select('*')
+      .eq('disabled', false)
       .order('created_at', { ascending: false })
 
     if (error) throw error
@@ -36,17 +37,17 @@ export const createUserProfile = async ({ authId, email, fullName, role }) => {
   }
 }
 
-export const deleteUserProfile = async (authId) => {
+export const disableUser = async (authId) => {
   try {
     const { error } = await supabase
       .from('users')
-      .delete()
+      .update({ disabled: true, updated_at: new Date().toISOString() })
       .eq('auth_id', authId)
 
     if (error) throw error
     return { error: null }
   } catch (error) {
-    console.error('Error deleting user profile:', error.message)
+    console.error('Error disabling user:', error.message)
     return { error: error.message }
   }
 }

@@ -15,6 +15,17 @@ export const loginUser = async (email, password) => {
     throw new Error('Usuario no encontrado')
   }
 
+  const { data: profileData, error: profileError } = await supabase
+    .from('users')
+    .select('disabled')
+    .eq('auth_id', data.user.id)
+    .single()
+
+  if (profileData?.disabled) {
+    await supabase.auth.signOut()
+    throw new Error('Esta cuenta ha sido desactivada. Contacta al administrador.')
+  }
+
   const userAdapter = {
     id: data.user.id,
     email: data.user.email,

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createUser } from '../../services/authService'
-import { getUsers, updateUserRole } from '../../services/userService'
+import { getUsers, updateUserRole, disableUser } from '../../services/userService'
 import { Users, Trash2, Shield, Wrench, Plus, X, Check, UserPlus, Eye, EyeOff, Edit2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -54,7 +54,19 @@ export default function TeamManager() {
   }
 
   const handleDelete = async (user) => {
-    toast.error('Para eliminar usuarios, contacta al desarrollador. Requiere configuración de Supabase.')
+    const mensaje = user.role === 'admin' 
+      ? `¿Desactivar al administrador "${user.full_name}"? No podrá acceder hasta que un admin lo reactive.`
+      : `¿Desactivar al usuario "${user.full_name}"? No podrá acceder hasta que un admin lo reactive.`
+
+    if (!confirm(mensaje)) return
+
+    const { error } = await disableUser(user.auth_id)
+    if (error) {
+      toast.error(error)
+    } else {
+      toast.success('Usuario desactivado')
+      load()
+    }
   }
 
   const handleRoleChange = async (user, newRole) => {
