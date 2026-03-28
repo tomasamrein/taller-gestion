@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
-import { getUsers, createUser, deleteUser, updateUserRole } from '../../services/authService'
+import { createUser } from '../../services/authService'
+import { getUsers, updateUserRole } from '../../services/userService'
 import { Users, Trash2, Shield, Wrench, Plus, X, Check, UserPlus, Eye, EyeOff, Edit2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -53,19 +54,7 @@ export default function TeamManager() {
   }
 
   const handleDelete = async (user) => {
-    const mensaje = user.role === 'admin' 
-      ? `¿Eliminar al administrador "${user.full_name}"? Esto puede dejar la cuenta sin acceso admin.`
-      : `¿Eliminar al usuario "${user.full_name}"?`
-
-    if (!confirm(mensaje)) return
-
-    const { error } = await deleteUser(user.id)
-    if (error) {
-      toast.error(error)
-    } else {
-      toast.success('Usuario eliminado')
-      load()
-    }
+    toast.error('Para eliminar usuarios, contacta al desarrollador. Requiere configuración de Supabase.')
   }
 
   const handleRoleChange = async (user, newRole) => {
@@ -73,7 +62,7 @@ export default function TeamManager() {
       return
     }
 
-    const { error } = await updateUserRole(user.id, newRole)
+    const { error } = await updateUserRole(user.auth_id, newRole)
     if (error) {
       toast.error(error)
     } else {
@@ -119,7 +108,7 @@ export default function TeamManager() {
             </thead>
             <tbody className="divide-y">
               {users.map(user => (
-                <tr key={user.id} className="hover:bg-orange-50/50 transition">
+                <tr key={user.auth_id} className="hover:bg-orange-50/50 transition">
                   <td className="p-4">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${

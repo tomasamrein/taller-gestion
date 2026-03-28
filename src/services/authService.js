@@ -1,6 +1,5 @@
 import { supabase } from '../lib/supabase'
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+import { createUserProfile } from './userService'
 
 export const loginUser = async (email, password) => {
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -48,59 +47,34 @@ export const getCurrentUser = async () => {
   }
 }
 
-export const getUsers = async () => {
+export const createUser = async ({ email, password, fullName, role = 'empleado' }) => {
   try {
-    const { data: { session } } = await supabase.auth.getSession()
-    
-    if (!session) {
-      throw new Error('No hay sesión activa')
-    }
-
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/list-users`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`
+    const { data, error } = await supabase.auth.signUp({
+      email: email.toLowerCase().trim(),
+      password: password,
+      options: {
+        data: {
+          full_name: fullName,
+          role: role,
+          taller_id: null
+        }
       }
     })
 
-    const result = await response.json()
-
-    if (!response.ok) {
-      throw new Error(result.error || 'Error al obtener usuarios')
+    if (error) {
+      throw new Error(error.message || 'Error al crear usuario')
     }
 
-    return { data: result.users || [], error: null }
-  } catch (error) {
-    console.error('Error fetching users:', error.message)
-    return { data: [], error: error.message }
-  }
-}
-
-export const createUser = async ({ email, password, fullName, role = 'empleado' }) => {
-  try {
-    const { data: { session } } = await supabase.auth.getSession()
-    
-    if (!session) {
-      throw new Error('No hay sesión activa')
+    if (data.user) {
+      await createUserProfile({
+        authId: data.user.id,
+        email: email.toLowerCase().trim(),
+        fullName,
+        role
+      })
     }
 
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/create-user`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`
-      },
-      body: JSON.stringify({ email, password, fullName, role })
-    })
-
-    const result = await response.json()
-
-    if (!response.ok) {
-      throw new Error(result.error || 'Error al crear usuario')
-    }
-
-    return { data: result.user, error: null }
+    return { data: data.user, error: null }
   } catch (error) {
     console.error('Error creating user:', error.message)
     return { error: error.message }
@@ -108,61 +82,11 @@ export const createUser = async ({ email, password, fullName, role = 'empleado' 
 }
 
 export const deleteUser = async (userId) => {
-  try {
-    const { data: { session } } = await supabase.auth.getSession()
-    
-    if (!session) {
-      throw new Error('No hay sesión activa')
-    }
-
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/delete-user`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`
-      },
-      body: JSON.stringify({ userId })
-    })
-
-    const result = await response.json()
-
-    if (!response.ok) {
-      throw new Error(result.error || 'Error al eliminar usuario')
-    }
-
-    return { error: null }
-  } catch (error) {
-    console.error('Error deleting user:', error.message)
-    return { error: error.message }
-  }
+  console.log('deleteUser called with:', userId)
+  return { error: 'Eliminación de usuarios requiere configuración adicional de Supabase. Contacta al administrador.' }
 }
 
 export const updateUserRole = async (userId, newRole) => {
-  try {
-    const { data: { session } } = await supabase.auth.getSession()
-    
-    if (!session) {
-      throw new Error('No hay sesión activa')
-    }
-
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/update-user-role`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`
-      },
-      body: JSON.stringify({ userId, role: newRole })
-    })
-
-    const result = await response.json()
-
-    if (!response.ok) {
-      throw new Error(result.error || 'Error al actualizar rol')
-    }
-
-    return { error: null }
-  } catch (error) {
-    console.error('Error updating user role:', error.message)
-    return { error: error.message }
-  }
+  console.log('updateUserRole called with:', userId, newRole)
+  return { error: 'Actualización de roles requiere configuración adicional de Supabase. Contacta al administrador.' }
 }
