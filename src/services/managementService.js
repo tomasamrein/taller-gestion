@@ -18,7 +18,7 @@ export const getExpenses = async () => {
 
 export const createExpense = async (expense, userRole, userName) => {
   try {
-    const isAdmin = userRole === 'admin'
+    const isAdmin = userRole === 'admin' || userRole === 'supervisor'
     const initialStatus = isAdmin ? 'approved' : 'pending'
 
     const { error } = await supabase.from('expenses').insert([{
@@ -32,9 +32,9 @@ export const createExpense = async (expense, userRole, userName) => {
     if (error) throw error
 
     if (isAdmin) {
-      await logAction(userName, 'GASTO_DIRECTO', `Registró: ${expense.description} ($${expense.amount})`, 'warning')
+      await logAction(userName, 'GASTO_DIRECTO', `Registró: ${expense.description} ($${Number(expense.amount).toLocaleString()})`, 'success')
     } else {
-      await logAction(userName, 'SOLICITUD_GASTO', `Solicitó autorización para: ${expense.description} ($${expense.amount})`, 'warning')
+      await logAction(userName, 'SOLICITUD_GASTO', `Solicitó autorización para: ${expense.description} ($${Number(expense.amount).toLocaleString()})`, 'warning')
     }
     
     return { error: null }
@@ -46,12 +46,15 @@ export const createExpense = async (expense, userRole, userName) => {
 
 export const approveExpense = async (id, isApproved, userName) => {
   try {
+    // Get expense details for the log
+    const { data: expense } = await supabase.from('expenses').select('description, amount').eq('id', id).single()
+    
     if (isApproved) {
       await supabase.from('expenses').update({ status: 'approved' }).eq('id', id)
-      await logAction(userName, 'APROBAR_GASTO', `Aprobó el gasto ID ${id}`)
+      await logAction(userName, 'APROBAR_GASTO', `Aprobó el gasto: ${expense?.description || 'ID ' + id} ($${expense?.amount ? Number(expense.amount).toLocaleString() : '0'})`, 'success')
     } else {
       await supabase.from('expenses').delete().eq('id', id)
-      await logAction(userName, 'RECHAZAR_GASTO', `Rechazó y eliminó el gasto ID ${id}`, 'error')
+      await logAction(userName, 'RECHAZAR_GASTO', `Rechazó el gasto: ${expense?.description || 'ID ' + id} ($${expense?.amount ? Number(expense.amount).toLocaleString() : '0'})`, 'error')
     }
     return { error: null }
   } catch (error) {
