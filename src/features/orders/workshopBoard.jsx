@@ -108,7 +108,7 @@ export default function WorkshopBoard({ userRole }) {
         return
       }
       if(newStatus === 'finalizado') toast.success('Orden Finalizada y Cobrada')
-      if(newStatus === 'en_proceso') toast.success('Orden Reabierta')
+      if(newStatus === 'en_progreso') toast.success('Orden Reabierta')
       setPage(0); loadOrders(0, true);
     }
   }
@@ -127,7 +127,7 @@ export default function WorkshopBoard({ userRole }) {
   const getStatusStyle = (status) => {
     switch(status) {
       case 'pendiente': return 'bg-red-100 text-red-800 border-red-200';
-      case 'en_proceso': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'en_progreso': return 'bg-orange-100 text-orange-800 border-orange-200';
       case 'revision': return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'finalizado': return 'bg-green-100 text-green-800 border-green-200';
       default: return 'bg-gray-100 text-gray-800';
@@ -309,7 +309,7 @@ export default function WorkshopBoard({ userRole }) {
                                 Informe
                             </button>
                             {userRole === 'admin' && (
-                                <button onClick={() => handleStatusChange(order.id, 'en_proceso')} className="flex-1 bg-white border border-gray-200 text-red-600 hover:bg-red-50 text-xs py-2 rounded-lg font-bold transition shadow-sm" title="Reabrir">
+                                <button onClick={() => handleStatusChange(order.id, 'en_progreso')} className="flex-1 bg-white border border-gray-200 text-red-600 hover:bg-red-50 text-xs py-2 rounded-lg font-bold transition shadow-sm" title="Reabrir">
                                     Reabrir
                                 </button>
                             )}
@@ -347,7 +347,7 @@ export default function WorkshopBoard({ userRole }) {
 
                             {order.status === 'pendiente' ? (
                                 <button 
-                                onClick={() => handleStatusChange(order.id, 'en_proceso')} 
+                                onClick={() => handleStatusChange(order.id, 'en_progreso')} 
                                 className="flex-1 bg-slate-700 text-white text-sm py-2 rounded-lg font-bold hover:bg-slate-800 transition shadow-sm animate-pulse"
                                 >
                                 Empezar
