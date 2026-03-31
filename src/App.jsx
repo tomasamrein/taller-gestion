@@ -25,6 +25,9 @@ function App() {
   useEffect(() => {
     let mounted = true
 
+    // Clear any stale localStorage that might have wrong role
+    localStorage.removeItem('user_session')
+
     const initializeAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
@@ -117,7 +120,7 @@ function App() {
   }, [])
 
   const handleLogin = (data, rememberMe) => {
-    console.log('handleLogin - received data:', data)
+    console.log('handleLogin - received data:', data, 'role:', data?.role)
     setUserData(data)
     setUserRole(data.role)
     setIsAuthenticated(true)
