@@ -30,16 +30,22 @@ function App() {
         const { data: { session } } = await supabase.auth.getSession()
         
         if (mounted && session?.user) {
+          console.log('Session user:', session.user.id)
+          
           // Get role from users table (authoritative source)
-          const { data: userProfile } = await supabase
+          const { data: userProfile, error: profileError } = await supabase
             .from('users')
             .select('role, full_name')
             .eq('auth_id', session.user.id)
             .single()
           
+          console.log('User profile:', userProfile, 'error:', profileError)
+          
           const metadata = session.user.user_metadata || {}
           const role = userProfile?.role || metadata.role || 'empleado'
           const name = userProfile?.full_name || metadata.full_name || session.user.email?.split('@')[0] || 'Usuario'
+          
+          console.log('Final role:', role)
           
           setIsAuthenticated(true)
           setUserRole(role)
