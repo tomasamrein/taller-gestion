@@ -6,8 +6,8 @@ INSERT INTO public.users (auth_id, email, full_name, role, disabled, created_at)
 SELECT 
     au.id AS auth_id,
     au.email,
-    COALESCE(au.user_metadata->>'full_name', split_part(au.email, '@', 1)) AS full_name,
-    COALESCE(au.user_metadata->>'role', 'empleado') AS role,
+    COALESCE(au.raw_user_meta_data->>'full_name', split_part(au.email, '@', 1)) AS full_name,
+    COALESCE(au.raw_user_meta_data->>'role', 'empleado') AS role,
     false AS disabled,
     au.created_at
 FROM auth.users au
@@ -18,8 +18,8 @@ ON CONFLICT (auth_id) DO NOTHING;
 -- Verify the migration
 SELECT 
     au.email,
-    au.user_metadata->>'full_name' as metadata_name,
-    au.user_metadata->>'role' as metadata_role,
+    au.raw_user_meta_data->>'full_name' as metadata_name,
+    au.raw_user_meta_data->>'role' as metadata_role,
     pu.id IS NOT null as has_profile,
     pu.full_name as profile_name,
     pu.role as profile_role
