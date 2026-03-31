@@ -129,11 +129,15 @@ export const getOrderItems = async (orderId) => {
 
 export const addOrderItem = async (item) => {
   try {
+    console.log('addOrderItem - sending:', item)
     const { error } = await supabase.from('order_items').insert([item])
-    if (error) throw error
+    if (error) {
+      console.error('addOrderItem - error:', error)
+      throw error
+    }
     return { error: null }
   } catch (error) {
-    console.error('Error adding order item:', error.message)
+    console.error('addOrderItem - exception:', error.message)
     return { error: error.message }
   }
 }
