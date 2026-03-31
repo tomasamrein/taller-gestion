@@ -282,7 +282,7 @@ export default function WorkshopBoard({ userRole }) {
                 <div className="mt-4 flex flex-col gap-1 text-xs text-gray-400">
                   <div className="flex items-center gap-2">
                     <Calendar size={12} />
-                    <span>Ingreso: {new Date(order.created_at).toLocaleDateString()} {new Date(order.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}hs</span>
+                    <span>Ingreso: {new Date(order.created_at).toLocaleDateString()} {new Date(order.created_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}hs</span>
                   </div>
                   {isFinished && order.delivery_date && (
                       <div className="flex items-center gap-2 text-green-600 font-medium">

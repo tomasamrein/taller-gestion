@@ -4,13 +4,15 @@ import { getUsers, updateUserRole, disableUser } from '../../services/userServic
 import { Users, Trash2, Shield, Wrench, Plus, X, Check, UserPlus, Eye, EyeOff, Edit2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-export default function TeamManager() {
+export default function TeamManager({ userRole: currentUserRole }) {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState(null)
   const [newUser, setNewUser] = useState({ email: '', password: '', fullName: '', role: 'empleado' })
   const [showPassword, setShowPassword] = useState(false)
+
+  const isSupervisor = currentUserRole === 'supervisor'
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -54,6 +56,11 @@ export default function TeamManager() {
   }
 
   const handleDelete = async (user) => {
+    if (user.role === 'supervisor') {
+      toast.error('No se puede desactivar al Supervisor')
+      return
+    }
+    
     const mensaje = user.role === 'admin' 
       ? `¿Desactivar al administrador "${user.full_name}"? No podrá acceder hasta que un admin lo reactive.`
       : `¿Desactivar al usuario "${user.full_name}"? No podrá acceder hasta que un admin lo reactive.`
@@ -70,7 +77,12 @@ export default function TeamManager() {
   }
 
   const handleRoleChange = async (user, newRole) => {
-    if (!confirm(`¿Cambiar el rol de "${user.full_name}" a ${newRole === 'admin' ? 'Administrador' : 'Empleado'}?`)) {
+    if (user.role === 'supervisor') {
+      toast.error('No se puede cambiar el rol del Supervisor')
+      return
+    }
+    
+    if (!confirm(`¿Cambiar el rol de "${user.full_name}" a ${newRole === 'supervisor' ? 'Supervisor' : newRole === 'admin' ? 'Administrador' : 'Empleado'}?`)) {
       return
     }
 
@@ -138,13 +150,17 @@ export default function TeamManager() {
                     <select 
                       value={user.role}
                       onChange={(e) => handleRoleChange(user, e.target.value)}
+                      disabled={user.role === 'supervisor' || (currentUserRole !== 'supervisor' && user.role === 'supervisor')}
                       className={`px-3 py-1 rounded-full text-xs font-bold border cursor-pointer ${
-                        user.role === 'admin'
-                          ? 'bg-purple-100 text-purple-700 border-purple-200'
-                          : 'bg-orange-100 text-orange-700 border-orange-200'
+                        user.role === 'supervisor'
+                          ? 'bg-slate-800 text-white border-slate-800'
+                          : user.role === 'admin'
+                            ? 'bg-purple-100 text-purple-700 border-purple-200'
+                            : 'bg-orange-100 text-orange-700 border-orange-200'
                       }`}
                     >
                       <option value="empleado">Empleado</option>
+                      {isSupervisor && <option value="supervisor">Supervisor</option>}
                       <option value="admin">Administrador</option>
                     </select>
                   </td>
@@ -152,13 +168,15 @@ export default function TeamManager() {
                     {new Date(user.created_at).toLocaleDateString()}
                   </td>
                   <td className="p-4 text-center">
-                    <button 
-                      onClick={() => handleDelete(user)}
-                      className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition"
-                      title="Eliminar usuario"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    {user.role !== 'supervisor' && (
+                      <button 
+                        onClick={() => handleDelete(user)}
+                        className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition"
+                        title="Eliminar usuario"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -233,8 +251,12 @@ export default function TeamManager() {
                   onChange={e => setNewUser({...newUser, role: e.target.value})}
                 >
                   <option value="empleado">Empleado (Acceso limitado)</option>
+                  {!isSupervisor && <option value="supervisor">Supervisor (Máximo acceso)</option>}
                   <option value="admin">Administrador (Acceso total)</option>
                 </select>
+                {!isSupervisor && (
+                  <p className="text-xs text-gray-400 mt-1">Solo un Supervisor puede crear otro Supervisor</p>
+                )}
               </div>
 
               <div className="flex gap-3 pt-4">

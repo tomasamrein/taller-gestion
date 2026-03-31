@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase'
-import { createUserProfile } from './userService'
 
 export const loginUser = async (email, password) => {
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -60,6 +59,8 @@ export const getCurrentUser = async () => {
 
 export const createUser = async ({ email, password, fullName, role = 'empleado' }) => {
   try {
+    console.log('Creating user:', { email, fullName, role })
+    
     const { data, error } = await supabase.auth.signUp({
       email: email.toLowerCase().trim(),
       password: password,
@@ -73,16 +74,30 @@ export const createUser = async ({ email, password, fullName, role = 'empleado' 
     })
 
     if (error) {
+      console.error('Supabase signUp error:', error)
       throw new Error(error.message || 'Error al crear usuario')
     }
 
+    console.log('User created in auth:', data.user)
+
     if (data.user) {
-      await createUserProfile({
-        authId: data.user.id,
-        email: email.toLowerCase().trim(),
-        fullName,
-        role
-      })
+      // Create profile in users table
+      const { error: profileError } = await supabase
+        .from('users')
+        .insert({
+          auth_id: data.user.id,
+          email: email.toLowerCase().trim(),
+          full_name: fullName,
+          role: role,
+          disabled: false
+        })
+
+      if (profileError) {
+        console.error('Error creating user profile:', profileError)
+        // Don't fail the whole operation, just log it
+      } else {
+        console.log('User profile created successfully')
+      }
     }
 
     return { data: data.user, error: null }

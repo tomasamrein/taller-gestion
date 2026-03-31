@@ -282,7 +282,7 @@ export default function Dashboard() {
                                     <p className="text-xs uppercase font-bold text-gray-400 flex items-center gap-1">
                                     {fixDate(mov.displayDate).toLocaleDateString()}
                                     <span className="text-gray-300">•</span>
-                                    {fixDate(mov.displayDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}hs
+                                    {fixDate(mov.displayDate).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}hs
                                 </p>
                                 </td>
                                 <td className={`p-4 text-right font-bold text-sm whitespace-nowrap ${mov.type === 'ingreso' ? 'text-emerald-600' : 'text-red-500'}`}>

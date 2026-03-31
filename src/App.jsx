@@ -138,13 +138,13 @@ function App() {
             <Route path="gastos" element={<Expenses userRole={userRole} userName={userData?.name || 'Usuario'} />} />
             <Route path="proveedores" element={<Suppliers />} />
             
-            {userRole === 'admin' && (
+            {userRole === 'admin' || userRole === 'supervisor' ? (
               <> 
-                <Route path="equipo" element={<TeamManager />} />
+                <Route path="equipo" element={<TeamManager userRole={userRole} />} />
                 <Route path="auditoria" element={<AuditLog />} />
                 <Route path="facturacion" element={<BillingHistory />} />
               </>
-            )}
+            ) : null}
             
             <Route path="*" element={<Navigate to="/" />} />
           </Route>
