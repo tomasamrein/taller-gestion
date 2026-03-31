@@ -17,12 +17,17 @@ export const getVehiclesByClient = async (clientId) => {
 
 export const createVehicle = async (vehicleData) => {
   try {
+    console.log('vehicleService - createVehicle:', vehicleData)
+    
     const { data, error } = await supabase
       .from('vehicles')
       .insert([vehicleData])
       .select()
     
-    if (error) throw error
+    if (error) {
+      console.error('Supabase error:', error)
+      throw error
+    }
     return { data: data[0], error: null }
   } catch (error) {
     console.error('Error creating vehicle:', error.message)

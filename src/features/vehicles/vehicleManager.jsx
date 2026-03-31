@@ -56,25 +56,43 @@ export default function VehicleManager({ client, onClose }) {
       return
     }
 
+    if (!client?.id) {
+      toast.error('Error: Cliente no seleccionado')
+      return
+    }
+
     setLoading(true)
     try {
-        const vehicleData = {
+        console.log('Intentando crear vehículo con:', {
           brand: newCar.brand,
           model: newCar.model,
           year: newCar.year || null,
           patent: normalizePatent(newCar.patent),
           km: newCar.km ? Number(newCar.km) : null,
           client_id: client.id
+        })
+        
+        const { data, error } = await createVehicle({
+          brand: newCar.brand,
+          model: newCar.model,
+          year: newCar.year || null,
+          patent: normalizePatent(newCar.patent),
+          km: newCar.km ? Number(newCar.km) : null,
+          client_id: client.id
+        })
+        
+        if (error) {
+          console.error('Error de Supabase:', error)
+          throw new Error(error.message || error.code || 'Error al crear vehículo')
         }
         
-        const { error } = await createVehicle(vehicleData)
-        if (error) throw new Error(error)
+        console.log('Vehículo creado:', data)
         toast.success('Vehículo agregado')
         setNewCar({ brand: '', model: '', year: '', patent: '', km: '' })
         load()
     } catch (error) {
         console.error(error)
-        toast.error('Error al crear vehículo')
+        toast.error(`Error al crear vehículo: ${error.message}`)
     } finally {
         setLoading(false)
     }
