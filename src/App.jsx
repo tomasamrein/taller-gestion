@@ -117,6 +117,7 @@ function App() {
   }, [])
 
   const handleLogin = (data, rememberMe) => {
+    console.log('handleLogin - received data:', data)
     setUserData(data)
     setUserRole(data.role)
     setIsAuthenticated(true)
