@@ -52,7 +52,11 @@ export default function OrderBilling({ order, onClose }) {
     }
     setLoading(true)
     
-    const { error } = await addOrderItem({ ...newItem, order_id: order.id })
+    const itemData = { ...newItem, order_id: order.id }
+    console.log('Adding item with order_id:', order.id, 'order type:', typeof order.id)
+    console.log('Full item data:', itemData)
+    
+    const { error } = await addOrderItem(itemData)
     if (error) {
       console.error('Error adding item:', error)
       toast.error(`Error al agregar item: ${error.message || error}`)
