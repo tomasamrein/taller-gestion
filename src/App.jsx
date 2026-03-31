@@ -124,6 +124,8 @@ function App() {
     setUserData(data)
     setUserRole(data.role)
     setIsAuthenticated(true)
+    console.log('handleLogin - setUserRole called with:', data.role)
+    console.log('handleLogin - userRole state should be:', data.role)
     
     if (rememberMe) {
       localStorage.setItem('user_session', JSON.stringify(data))
@@ -180,13 +182,14 @@ function App() {
             <Route path="gastos" element={<Expenses userRole={userRole} userName={userData?.name || 'Usuario'} />} />
             <Route path="proveedores" element={<Suppliers />} />
             
-            {userRole === 'admin' || userRole === 'supervisor' ? (
+            {console.log('RENDER - userRole:', userRole) || null}
+            {(userRole === 'admin' || userRole === 'supervisor') && (
               <> 
                 <Route path="equipo" element={<TeamManager userRole={userRole} />} />
                 <Route path="auditoria" element={<AuditLog />} />
                 <Route path="facturacion" element={<BillingHistory />} />
               </>
-            ) : null}
+            )}
             
             <Route path="*" element={<Navigate to="/" />} />
           </Route>
