@@ -61,6 +61,11 @@ export default function VehicleManager({ client, onClose }) {
       return
     }
 
+    if (!newCar.brand || !newCar.model) {
+      toast.error('Marca y modelo son obligatorios')
+      return
+    }
+
     setLoading(true)
     try {
         console.log('Intentando crear vehículo con:', {
@@ -83,7 +88,8 @@ export default function VehicleManager({ client, onClose }) {
         
         if (error) {
           console.error('Error de Supabase:', error)
-          throw new Error(error.message || error.code || 'Error al crear vehículo')
+          toast.error(`Error: ${error.message || error.code || JSON.stringify(error)}`)
+          return
         }
         
         console.log('Vehículo creado:', data)
@@ -91,8 +97,8 @@ export default function VehicleManager({ client, onClose }) {
         setNewCar({ brand: '', model: '', year: '', patent: '', km: '' })
         load()
     } catch (error) {
-        console.error(error)
-        toast.error(`Error al crear vehículo: ${error.message}`)
+        console.error('Error completo:', error)
+        toast.error(`Error: ${error.message}`)
     } finally {
         setLoading(false)
     }
@@ -153,22 +159,6 @@ export default function VehicleManager({ client, onClose }) {
     } else {
       console.log('Orden creada:', data)
       toast.success('Auto ingresar al Taller!')
-      setShowWorkshopModal(false)
-      onClose()
-    }
-  }
-
-    const { error } = await createOrder({ 
-      vehicle_id: selectedVehicle.id, 
-      description: workshopForm.description.trim(),
-      km: workshopForm.km ? Number(workshopForm.km) : null,
-      notes: workshopForm.notes.trim() || null
-    })
-    
-    if (error) {
-      toast.error('No se pudo ingresar el auto')
-    } else {
-      toast.success('Auto ingresado al Taller!')
       setShowWorkshopModal(false)
       onClose()
     }
