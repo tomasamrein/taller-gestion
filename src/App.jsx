@@ -69,17 +69,22 @@ function App() {
         setUserRole(null)
         setUserData(null)
       } else if (session?.user) {
-        // Get role from users table
-        supabase
-          .from('users')
-          .select('role, full_name')
-          .eq('auth_id', session.user.id)
-          .single()
-          .then(({ data: userProfile }) => {
+        // Get role from users table (async)
+        const fetchUserRole = async () => {
+          try {
+            const { data: userProfile } = await supabase
+              .from('users')
+              .select('role, full_name')
+              .eq('auth_id', session.user.id)
+              .single()
+            
             if (!mounted) return
+            
             const metadata = session.user.user_metadata || {}
             const role = userProfile?.role || metadata.role || 'empleado'
             const name = userProfile?.full_name || metadata.full_name || session.user.email?.split('@')[0] || 'Usuario'
+            
+            console.log('Auth change - userProfile:', userProfile, 'role:', role)
             
             setIsAuthenticated(true)
             setUserRole(role)
@@ -90,7 +95,12 @@ function App() {
               role: role,
               taller_id: metadata.taller_id || null
             })
-          })
+          } catch (err) {
+            console.error('Error fetching user role:', err)
+          }
+        }
+        
+        fetchUserRole()
       }
     })
 
