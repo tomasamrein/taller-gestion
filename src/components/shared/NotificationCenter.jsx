@@ -10,7 +10,7 @@ export default function NotificationCenter({ userRole }) {
   const [pendingOrders, setPendingOrders] = useState([])
   const [isOpen, setIsOpen] = useState(false)
 
-  if (userRole !== 'admin') return null
+  if (userRole !== 'admin' && userRole !== 'supervisor') return null
 
   useEffect(() => { loadPending() }, [isOpen]) 
 

@@ -18,11 +18,13 @@ export default function Layout({ onLogout, userRole }) {
     { icon: Truck, label: 'Proveedores', path: '/proveedores' },
   ]
 
-  // AGREGAMOS LOS MENÚS DE ADMIN
-  if (userRole === 'admin') {
-    menuItems.push({ icon: FileText, label: 'Facturación', path: '/facturacion' }) // Nuevo 26.01
-    menuItems.push({ icon: Briefcase, label: 'Equipo', path: '/equipo' }) // Agregado
-    menuItems.push({ icon: Shield, label: 'Auditoría', path: '/auditoria' }) // Agregado
+  // AGREGAMOS LOS MENÚS DE ADMIN Y SUPERVISOR
+  const isAdminOrSupervisor = userRole === 'admin' || userRole === 'supervisor'
+  
+  if (isAdminOrSupervisor) {
+    menuItems.push({ icon: FileText, label: 'Facturación', path: '/facturacion' })
+    menuItems.push({ icon: Briefcase, label: 'Equipo', path: '/equipo' })
+    menuItems.push({ icon: Shield, label: 'Auditoría', path: '/auditoria' })
   }
 
   return (
@@ -87,12 +89,13 @@ export default function Layout({ onLogout, userRole }) {
 
           <h2 className="hidden md:flex text-gray-500 text-sm font-medium items-center gap-2">
              Panel de Control
+             {userRole === 'supervisor' && <span className="bg-slate-800 text-white text-xs px-2 py-0.5 rounded-full font-bold border border-slate-600">SUPERVISOR</span>}
              {userRole === 'admin' && <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full font-bold border border-orange-200">ADMIN</span>}
           </h2>
 
           <div className="flex items-center gap-3 ml-auto">
             
-            {userRole === 'admin' && (
+            {(userRole === 'admin' || userRole === 'supervisor') && (
                 <NotificationCenter userRole={userRole} userName="Admin" />
             )}
 
@@ -102,8 +105,12 @@ export default function Layout({ onLogout, userRole }) {
                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Online
               </p>
             </div>
-            <div className={`h-9 w-9 lg:h-10 lg:w-10 rounded-full flex items-center justify-center font-bold border ${userRole === 'admin' ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-              {userRole === 'admin' ? 'AD' : 'OP'}
+            <div className={`h-9 w-9 lg:h-10 lg:w-10 rounded-full flex items-center justify-center font-bold border ${
+              userRole === 'supervisor' ? 'bg-slate-800 text-white border-slate-600' :
+              userRole === 'admin' ? 'bg-orange-100 text-orange-700 border-orange-200' : 
+              'bg-slate-100 text-slate-700 border-slate-200'
+            }`}>
+              {userRole === 'supervisor' ? 'SP' : userRole === 'admin' ? 'AD' : 'OP'}
             </div>
           </div>
         </header>
