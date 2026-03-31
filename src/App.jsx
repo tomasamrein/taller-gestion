@@ -30,14 +30,24 @@ function App() {
         const { data: { session } } = await supabase.auth.getSession()
         
         if (mounted && session?.user) {
+          // Get role from users table (authoritative source)
+          const { data: userProfile } = await supabase
+            .from('users')
+            .select('role, full_name')
+            .eq('auth_id', session.user.id)
+            .single()
+          
           const metadata = session.user.user_metadata || {}
+          const role = userProfile?.role || metadata.role || 'empleado'
+          const name = userProfile?.full_name || metadata.full_name || session.user.email?.split('@')[0] || 'Usuario'
+          
           setIsAuthenticated(true)
-          setUserRole(metadata.role || 'empleado')
+          setUserRole(role)
           setUserData({
             id: session.user.id,
             email: session.user.email,
-            name: metadata.full_name || session.user.email?.split('@')[0] || 'Usuario',
-            role: metadata.role || 'empleado',
+            name: name,
+            role: role,
             taller_id: metadata.taller_id || null
           })
         }
@@ -59,16 +69,28 @@ function App() {
         setUserRole(null)
         setUserData(null)
       } else if (session?.user) {
-        const metadata = session.user.user_metadata || {}
-        setIsAuthenticated(true)
-        setUserRole(metadata.role || 'empleado')
-        setUserData({
-          id: session.user.id,
-          email: session.user.email,
-          name: metadata.full_name || session.user.email?.split('@')[0] || 'Usuario',
-          role: metadata.role || 'empleado',
-          taller_id: metadata.taller_id || null
-        })
+        // Get role from users table
+        supabase
+          .from('users')
+          .select('role, full_name')
+          .eq('auth_id', session.user.id)
+          .single()
+          .then(({ data: userProfile }) => {
+            if (!mounted) return
+            const metadata = session.user.user_metadata || {}
+            const role = userProfile?.role || metadata.role || 'empleado'
+            const name = userProfile?.full_name || metadata.full_name || session.user.email?.split('@')[0] || 'Usuario'
+            
+            setIsAuthenticated(true)
+            setUserRole(role)
+            setUserData({
+              id: session.user.id,
+              email: session.user.email,
+              name: name,
+              role: role,
+              taller_id: metadata.taller_id || null
+            })
+          })
       }
     })
 

@@ -5,7 +5,6 @@ export const getUsers = async () => {
     const { data, error } = await supabase
       .from('users')
       .select('*')
-      .eq('disabled', false)
       .order('created_at', { ascending: false })
 
     if (error) throw error

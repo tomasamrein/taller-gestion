@@ -40,6 +40,11 @@ export default function TeamManager({ userRole: currentUserRole }) {
       return toast.error('La contraseña debe tener al menos 6 caracteres')
     }
 
+    // Prevent non-supervisors from creating supervisor
+    if (newUser.role === 'supervisor' && !isSupervisor) {
+      return toast.error('Solo un Supervisor puede crear otro Supervisor')
+    }
+
     const { error } = await createUser({
       email: newUser.email,
       password: newUser.password,
