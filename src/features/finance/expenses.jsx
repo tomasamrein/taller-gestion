@@ -198,7 +198,7 @@ export default function Expenses({ userRole, userName }) {
             </select>
             
             <button className="w-full bg-slate-800 text-white py-3 rounded-lg font-bold hover:bg-slate-700 shadow-lg transition transform active:scale-95">
-                {userRole === 'admin' ? 'Registrar Salida' : 'Solicitar Aprobación'}
+                {(userRole === 'admin' || userRole === 'supervisor') ? 'Registrar Salida' : 'Solicitar Aprobación'}
             </button>
 
             {form.description && form.amount && !showTemplates && (
@@ -258,7 +258,7 @@ export default function Expenses({ userRole, userName }) {
                     </td>
                     
                     <td className="p-4 text-center">
-                    {(userRole === 'admin' || ex.status === 'pending') ? (
+                    {(userRole === 'admin' || userRole === 'supervisor' || ex.status === 'pending') ? (
                         <button 
                             onClick={() => handleDelete(ex.id, ex.status)} 
                             className="text-gray-400 hover:text-red-600 transition p-2"
