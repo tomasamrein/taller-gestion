@@ -128,6 +128,36 @@ export default function VehicleManager({ client, onClose }) {
       return
     }
 
+    if (!selectedVehicle?.id) {
+      toast.error('Error: Vehículo no seleccionado')
+      return
+    }
+
+    console.log('Creando orden:', {
+      vehicle_id: selectedVehicle.id,
+      description: workshopForm.description.trim(),
+      km: workshopForm.km ? Number(workshopForm.km) : null,
+      notes: workshopForm.notes.trim() || null
+    })
+    
+    const { data, error } = await createOrder({ 
+      vehicle_id: selectedVehicle.id, 
+      description: workshopForm.description.trim(),
+      km: workshopForm.km ? Number(workshopForm.km) : null,
+      notes: workshopForm.notes.trim() || null
+    })
+    
+    if (error) {
+      console.error('Error al crear orden:', error)
+      toast.error(`No se pudo ingresar el auto: ${error.message || error}`)
+    } else {
+      console.log('Orden creada:', data)
+      toast.success('Auto ingresar al Taller!')
+      setShowWorkshopModal(false)
+      onClose()
+    }
+  }
+
     const { error } = await createOrder({ 
       vehicle_id: selectedVehicle.id, 
       description: workshopForm.description.trim(),

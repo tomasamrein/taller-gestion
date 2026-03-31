@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 export const getActiveOrders = async () => {
   try {
     const { data, error } = await supabase
-      .from('work_orders')
+      .from('orders')
       .select(`
         *,
         vehicles (
@@ -25,7 +25,7 @@ export const getActiveOrders = async () => {
 export const getFinishedOrdersWithItems = async (page = null, limit = 30) => {
   try {
     let query = supabase
-      .from('work_orders')
+      .from('orders')
       .select(`
         *,
         vehicles (
@@ -65,10 +65,10 @@ export const createOrder = async (order) => {
     }
     
     if (order.notes) {
-      payload.internal_notes = order.notes
+      payload.notes = order.notes
     }
 
-    const { data, error } = await supabase.from('work_orders')
+    const { data, error } = await supabase.from('orders')
       .insert([payload])
       .select() 
     
@@ -92,7 +92,7 @@ export const updateOrderStatus = async (id, status) => {
     }
 
     const { error } = await supabase
-      .from('work_orders')
+      .from('orders')
       .update(updates)
       .eq('id', id)
 

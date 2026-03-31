@@ -20,7 +20,7 @@ export default function NotificationCenter({ userRole }) {
     setPendingExpenses(expenses || [])
 
     // Busca ordenes en revisión
-    const { data: orders } = await supabase.from('work_orders').select('*, vehicles(brand, model, patent)').eq('status', 'revision')
+    const { data: orders } = await supabase.from('orders').select('*, vehicles(brand, model, patent)').eq('status', 'revision')
     setPendingOrders(orders || [])
   }
 
