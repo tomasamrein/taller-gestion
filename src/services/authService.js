@@ -14,9 +14,10 @@ export const loginUser = async (email, password) => {
     throw new Error('Usuario no encontrado')
   }
 
+  // Get role from users table (authoritative source)
   const { data: profileData, error: profileError } = await supabase
     .from('users')
-    .select('disabled')
+    .select('role, full_name, disabled')
     .eq('auth_id', data.user.id)
     .single()
 
@@ -25,12 +26,16 @@ export const loginUser = async (email, password) => {
     throw new Error('Esta cuenta ha sido desactivada. Contacta al administrador.')
   }
 
+  const metadata = data.user.user_metadata || {}
+  const role = profileData?.role || metadata.role || 'empleado'
+  const name = profileData?.full_name || metadata.full_name || data.user.email.split('@')[0]
+
   const userAdapter = {
     id: data.user.id,
     email: data.user.email,
-    name: data.user.user_metadata?.full_name || data.user.email.split('@')[0],
-    role: data.user.user_metadata?.role || 'empleado',
-    taller_id: data.user.user_metadata?.taller_id || null
+    name: name,
+    role: role,
+    taller_id: metadata.taller_id || null
   }
 
   return userAdapter
