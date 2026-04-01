@@ -162,7 +162,7 @@ function App() {
         {!isAuthenticated ? (
           <Route path="*" element={<Login onLogin={handleLogin} />} />
         ) : (
-          <Route path="/" element={<Layout onLogout={handleLogout} userRole={userRole} userData={userData} />}
+          <Route path="/" element={<Layout onLogout={handleLogout} userRole={userRole} userData={userData} />}>
             <Route index element={<Dashboard />} />
             <Route path="agenda" element={<Agenda />} />
             <Route path="clientes" element={<ClientList />} />
