@@ -54,9 +54,6 @@ export const getFinishedOrdersWithItems = async (page = null, limit = 30) => {
 
 export const createOrder = async (order) => {
   try {
-    console.log('createOrder - tabla:', 'orders')
-    console.log('createOrder - payload:', order)
-    
     const payload = {
       vehicle_id: order.vehicle_id,
       description: order.description,
@@ -70,8 +67,6 @@ export const createOrder = async (order) => {
     if (order.notes) {
       payload.notes = order.notes
     }
-
-    console.log('createOrder - sending payload:', payload)
 
     const { data, error } = await supabase.from('orders')
       .insert([payload])
@@ -129,7 +124,6 @@ export const getOrderItems = async (orderId) => {
 
 export const addOrderItem = async (item) => {
   try {
-    console.log('addOrderItem - sending:', item)
     const { error } = await supabase.from('order_items').insert([item])
     if (error) {
       console.error('addOrderItem - error:', error)

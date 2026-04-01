@@ -64,8 +64,6 @@ export const getCurrentUser = async () => {
 
 export const createUser = async ({ email, password, fullName, role = 'empleado' }) => {
   try {
-    console.log('Creating user:', { email, fullName, role })
-    
     const { data, error } = await supabase.auth.signUp({
       email: email.toLowerCase().trim(),
       password: password,
@@ -83,8 +81,6 @@ export const createUser = async ({ email, password, fullName, role = 'empleado' 
       throw new Error(error.message || 'Error al crear usuario')
     }
 
-    console.log('User created in auth:', data.user)
-
     if (data.user) {
       // Create profile in users table
       const { error: profileError } = await supabase
@@ -99,9 +95,6 @@ export const createUser = async ({ email, password, fullName, role = 'empleado' 
 
       if (profileError) {
         console.error('Error creating user profile:', profileError)
-        // Don't fail the whole operation, just log it
-      } else {
-        console.log('User profile created successfully')
       }
     }
 
@@ -113,11 +106,9 @@ export const createUser = async ({ email, password, fullName, role = 'empleado' 
 }
 
 export const deleteUser = async (userId) => {
-  console.log('deleteUser called with:', userId)
   return { error: 'Eliminación de usuarios requiere configuración adicional de Supabase. Contacta al administrador.' }
 }
 
 export const updateUserRole = async (userId, newRole) => {
-  console.log('updateUserRole called with:', userId, newRole)
   return { error: 'Actualización de roles requiere configuración adicional de Supabase. Contacta al administrador.' }
 }

@@ -17,8 +17,6 @@ export const getVehiclesByClient = async (clientId) => {
 
 export const createVehicle = async (vehicleData) => {
   try {
-    console.log('vehicleService - createVehicle:', vehicleData)
-    
     const { data, error } = await supabase
       .from('vehicles')
       .insert([vehicleData])

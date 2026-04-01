@@ -68,15 +68,6 @@ export default function VehicleManager({ client, onClose }) {
 
     setLoading(true)
     try {
-        console.log('Intentando crear vehículo con:', {
-          brand: newCar.brand,
-          model: newCar.model,
-          year: newCar.year || null,
-          patent: normalizePatent(newCar.patent),
-          km: newCar.km ? Number(newCar.km) : null,
-          client_id: client.id
-        })
-        
         const { data, error } = await createVehicle({
           brand: newCar.brand,
           model: newCar.model,
@@ -92,7 +83,6 @@ export default function VehicleManager({ client, onClose }) {
           return
         }
         
-        console.log('Vehículo creado:', data)
         toast.success('Vehículo agregado')
         setNewCar({ brand: '', model: '', year: '', patent: '', km: '' })
         load()
@@ -139,13 +129,6 @@ export default function VehicleManager({ client, onClose }) {
       return
     }
 
-    console.log('Creando orden:', {
-      vehicle_id: selectedVehicle.id,
-      description: workshopForm.description.trim(),
-      km: workshopForm.km ? Number(workshopForm.km) : null,
-      notes: workshopForm.notes.trim() || null
-    })
-    
     const { data, error } = await createOrder({ 
       vehicle_id: selectedVehicle.id, 
       description: workshopForm.description.trim(),
@@ -157,7 +140,6 @@ export default function VehicleManager({ client, onClose }) {
       console.error('Error al crear orden:', error)
       toast.error(`No se pudo ingresar el auto: ${error.message || error}`)
     } else {
-      console.log('Orden creada:', data)
       toast.success('Auto ingresar al Taller!')
       setShowWorkshopModal(false)
       onClose()

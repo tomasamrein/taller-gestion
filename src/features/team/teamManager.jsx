@@ -17,10 +17,8 @@ export default function TeamManager({ userRole: currentUserRole }) {
   const load = useCallback(async () => {
     setLoading(true)
     const { data, error } = await getUsers()
-    console.log('Load users - data:', data, 'error:', error)
     if (error) {
-      console.error('Error loading users:', error)
-      toast.error('Error al cargar usuarios: ' + error.message)
+      toast.error('Error al cargar usuarios')
     } else {
       setUsers(data || [])
     }

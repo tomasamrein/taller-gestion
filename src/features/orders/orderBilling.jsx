@@ -53,8 +53,6 @@ export default function OrderBilling({ order, onClose }) {
     setLoading(true)
     
     const itemData = { ...newItem, order_id: order.id }
-    console.log('Adding item with order_id:', order.id, 'order type:', typeof order.id)
-    console.log('Full item data:', itemData)
     
     const { error } = await addOrderItem(itemData)
     if (error) {

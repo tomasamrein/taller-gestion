@@ -87,8 +87,6 @@ function App() {
             const role = userProfile?.role || metadata.role || 'empleado'
             const name = userProfile?.full_name || metadata.full_name || session.user.email?.split('@')[0] || 'Usuario'
             
-            console.log('Auth change - userProfile:', userProfile, 'role:', role)
-            
             setIsAuthenticated(true)
             setUserRole(role)
             setUserData({
@@ -173,7 +171,6 @@ function App() {
             <Route path="gastos" element={<Expenses userRole={userRole} userName={userData?.name || 'Usuario'} />} />
             <Route path="proveedores" element={<Suppliers />} />
             
-            {console.log('RENDER - userRole:', userRole) || null}
             {(userRole === 'admin' || userRole === 'supervisor') && (
               <> 
                 <Route path="equipo" element={<TeamManager userRole={userRole} />} />
