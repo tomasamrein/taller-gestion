@@ -93,7 +93,9 @@ export default function WorkshopBoard({ userRole }) {
   }
 
   const handleStatusChange = async (id, newStatus) => {
-    if (newStatus === 'finalizado' && userRole !== 'admin') {
+    const canFinalize = userRole === 'admin' || userRole === 'supervisor'
+    
+    if (newStatus === 'finalizado' && !canFinalize) {
       const { error } = await updateOrderStatus(id, 'revision')
       if (error) {
         toast.error('Error al solicitar revisión')
@@ -308,7 +310,7 @@ export default function WorkshopBoard({ userRole }) {
                             <button onClick={() => setChecklistOrder(order)} className="flex-1 bg-white border border-gray-200 text-gray-700 hover:text-blue-600 text-xs py-2 rounded-lg font-bold transition shadow-sm" title="Ver Informe">
                                 Informe
                             </button>
-                            {userRole === 'admin' && (
+                            {(userRole === 'admin' || userRole === 'supervisor') && (
                                 <button onClick={() => handleStatusChange(order.id, 'en_progreso')} className="flex-1 bg-white border border-gray-200 text-red-600 hover:bg-red-50 text-xs py-2 rounded-lg font-bold transition shadow-sm" title="Reabrir">
                                     Reabrir
                                 </button>
@@ -356,10 +358,10 @@ export default function WorkshopBoard({ userRole }) {
                                 <button 
                                 onClick={() => handleStatusChange(order.id, 'finalizado')} 
                                 className={`flex-1 text-white text-sm py-2 rounded-lg font-bold transition shadow-sm ${
-                                    userRole === 'admin' ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-600 hover:bg-slate-700' 
+                                    (userRole === 'admin' || userRole === 'supervisor') ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-600 hover:bg-slate-700' 
                                 }`}
                                 >
-                                {userRole === 'admin' ? 'Finalizar' : 'Solicitar Cierre'}
+                                {(userRole === 'admin' || userRole === 'supervisor') ? 'Finalizar' : 'Solicitar Cierre'}
                                 </button>
                             )}
                         </div>
