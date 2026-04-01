@@ -4,9 +4,11 @@ import { LayoutDashboard, Users, Wrench, Package, Wallet, Truck, Shield, LogOut,
 import { FileText } from 'lucide-react'
 import NotificationCenter from './NotificationCenter'
 
-export default function Layout({ onLogout, userRole }) {
+export default function Layout({ onLogout, userRole, userData }) {
   const location = useLocation()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  
+  const userName = userData?.name || 'Usuario'
   
   let menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
@@ -97,7 +99,7 @@ export default function Layout({ onLogout, userRole }) {
           <div className="flex items-center gap-3 ml-auto">
             
             {(userRole === 'admin' || userRole === 'supervisor') && (
-                <NotificationCenter userRole={userRole} userName="Admin" />
+                <NotificationCenter userRole={userRole} userName={userName} />
             )}
 
             <div className="text-right hidden sm:block">

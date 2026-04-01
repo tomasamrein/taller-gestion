@@ -47,13 +47,20 @@ export const createExpense = async (expense, userRole, userName) => {
 export const approveExpense = async (id, isApproved, userName) => {
   try {
     // Get expense details for the log
-    const { data: expense } = await supabase.from('expenses').select('description, amount').eq('id', id).single()
+    const { data: expense, error: fetchError } = await supabase.from('expenses').select('description, amount').eq('id', id).single()
+    
+    if (fetchError) {
+      console.error('Error fetching expense:', fetchError)
+      throw fetchError
+    }
     
     if (isApproved) {
-      await supabase.from('expenses').update({ status: 'approved' }).eq('id', id)
+      const { error: updateError } = await supabase.from('expenses').update({ status: 'approved' }).eq('id', id)
+      if (updateError) throw updateError
       await logAction(userName, 'APROBAR_GASTO', `Aprobó el gasto: ${expense?.description || 'ID ' + id} ($${expense?.amount ? Number(expense.amount).toLocaleString() : '0'})`, 'success')
     } else {
-      await supabase.from('expenses').delete().eq('id', id)
+      const { error: deleteError } = await supabase.from('expenses').delete().eq('id', id)
+      if (deleteError) throw deleteError
       await logAction(userName, 'RECHAZAR_GASTO', `Rechazó el gasto: ${expense?.description || 'ID ' + id} ($${expense?.amount ? Number(expense.amount).toLocaleString() : '0'})`, 'error')
     }
     return { error: null }

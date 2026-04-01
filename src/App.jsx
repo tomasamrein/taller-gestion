@@ -33,8 +33,6 @@ function App() {
         const { data: { session } } = await supabase.auth.getSession()
         
         if (mounted && session?.user) {
-          console.log('Session user:', session.user.id)
-          
           // Get role from users table (authoritative source)
           const { data: userProfile, error: profileError } = await supabase
             .from('users')
@@ -42,13 +40,9 @@ function App() {
             .eq('auth_id', session.user.id)
             .single()
           
-          console.log('User profile:', userProfile, 'error:', profileError)
-          
           const metadata = session.user.user_metadata || {}
           const role = userProfile?.role || metadata.role || 'empleado'
           const name = userProfile?.full_name || metadata.full_name || session.user.email?.split('@')[0] || 'Usuario'
-          
-          console.log('Final role:', role)
           
           setIsAuthenticated(true)
           setUserRole(role)
@@ -120,12 +114,9 @@ function App() {
   }, [])
 
   const handleLogin = (data, rememberMe) => {
-    console.log('handleLogin - received data:', data, 'role:', data?.role)
     setUserData(data)
     setUserRole(data.role)
     setIsAuthenticated(true)
-    console.log('handleLogin - setUserRole called with:', data.role)
-    console.log('handleLogin - userRole state should be:', data.role)
     
     if (rememberMe) {
       localStorage.setItem('user_session', JSON.stringify(data))
@@ -173,7 +164,7 @@ function App() {
         {!isAuthenticated ? (
           <Route path="*" element={<Login onLogin={handleLogin} />} />
         ) : (
-          <Route path="/" element={<Layout onLogout={handleLogout} userRole={userRole} userData={userData} />}>
+          <Route path="/" element={<Layout onLogout={handleLogout} userRole={userRole} userData={userData} />}
             <Route index element={<Dashboard />} />
             <Route path="agenda" element={<Agenda />} />
             <Route path="clientes" element={<ClientList />} />

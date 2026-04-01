@@ -5,7 +5,7 @@ import { updateOrderStatus } from '../../services/orderService'
 import { Bell } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-export default function NotificationCenter({ userRole }) {
+export default function NotificationCenter({ userRole, userName }) {
   const [pendingExpenses, setPendingExpenses] = useState([])
   const [pendingOrders, setPendingOrders] = useState([])
   const [isOpen, setIsOpen] = useState(false)
@@ -25,9 +25,10 @@ export default function NotificationCenter({ userRole }) {
   }
 
   const handleExpense = async (id, approved) => {
-    const { error } = await approveExpense(id, approved, 'Admin')
+    const { error } = await approveExpense(id, approved, userName || 'Admin')
     if (error) {
-      toast.error('Error al procesar')
+      console.error('Error approving expense:', error)
+      toast.error(`Error al ${approved ? 'aprobar' : 'rechazar'}: ${error}`)
       return
     }
     toast.success(approved ? 'Gasto Aprobado' : 'Gasto Rechazado')
@@ -35,9 +36,10 @@ export default function NotificationCenter({ userRole }) {
   }
 
   const handleOrder = async (id, approved) => {
-    const { error } = await updateOrderStatus(id, approved ? 'finalizado' : 'en_proceso')
+    const { error } = await updateOrderStatus(id, approved ? 'finalizado' : 'en_progreso')
     if (error) {
-      toast.error('Error al procesar')
+      console.error('Error processing order:', error)
+      toast.error(`Error al ${approved ? 'confirmar' : 'devolver'}: ${error}`)
       return
     }
     toast.success(approved ? 'Orden Finalizada' : 'Orden devuelta a proceso')
